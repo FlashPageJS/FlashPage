@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    name: Build Bundles & Run Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [ 18.x, 20.x, 22.x ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Verify JavaScript Syntax
+        run: npm run check
+
+      - name: Build Bundles
+        run: npm run build
+
+      - name: Verify Bundles are Git Clean (No uncommitted bundle drift)
+        run: |
+          git status --porcelain
+          test -z "$(git status --porcelain flashpage.js flashpage.min.js flashpage.lite.js flashpage.lite.min.js)"
+
+      - name: Run Exhaustive & Matrix Test Suites
+        run: npm test
+
+      - name: Run Fast Unit Tests
+        run: node test/unitTests.js
+
+      - name: Verify Tarball Contents (Dry Run)
+        run: npm pack --dry-run
+

@@ -1,0 +1,63 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flash Page Test Server</title>
+<link rel="stylesheet" href="-">
+
+<body>
+
+<form>
+  <label>
+    Allow query string &amp; external links:
+    <input name="aqsael" type="checkbox" :checked_aqsael>
+  </label>
+  <label>
+    Use whitelist:
+    <input name="whitelist" type="checkbox" :checked_whitelist>
+  </label>
+  <label>
+    Page load time:
+    <input name="sleep" type="number" :value_sleep>
+  </label>
+  <label>
+    Intensity:
+    <input name="intensity" type="text" list="intensity-datalist" :value_intensity>
+  </label>
+  <datalist id="intensity-datalist">
+    <option>65</option>
+    <option>mousedown</option>
+    <option>mousedown-only</option>
+    <option>viewport</option>
+    <option>viewport-all</option>
+  </datalist>
+  <label>
+    Cache max age (in seconds):
+    <input name="cacheAge" type="number" :value_cacheAge>
+  </label>
+  <label>
+    Use minified:
+    <input name="minified" type="checkbox" :checked_minified>
+  </label>
+  <label>Vary: Accept header:
+    <select name="varyAccept">
+      <option :vary_accept_off>Off</option>
+      <option :vary_accept_on>On</option>
+      <option :vary_accept_simulate_shopify>Simulate Shopify</option>
+    </select>
+  </label>
+  <label>
+    <input type="submit" value="OK">
+  </label>
+  <inspag-body></inspag-body>
+</form>
+
+<nav>
+  <header>
+    <h2>Automated tests</h2>
+    <p><a href="/live" target="_blank" style="color: #2563eb; font-weight: 600;">⚡ Open Live Workbench (/live)</a></p>
+    <p>See console for results.</p>
+  </header>
+  <nav-content></nav-content>
+</nav>
+
+<main>

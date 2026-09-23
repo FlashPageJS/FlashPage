@@ -1,0 +1,70 @@
+{
+  "name": "flash-page",
+  "version": "1.0.0",
+  "description": "Smart prefetching and Speculation Rules manager with cursor trajectory prediction and server backpressure protection.",
+  "type": "module",
+  "main": "./flashpage.js",
+  "module": "./flashpage.js",
+  "types": "./flashpage.d.ts",
+  "exports": {
+    ".": {
+      "types": "./flashpage.d.ts",
+      "import": "./flashpage.js",
+      "default": "./flashpage.js"
+    },
+    "./lite": {
+      "types": "./flashpage.lite.d.ts",
+      "import": "./flashpage.lite.js",
+      "default": "./flashpage.lite.js"
+    }
+  },
+  "directories": {
+    "test": "test"
+  },
+  "files": [
+    "flashpage.js",
+    "flashpage.min.js",
+    "flashpage.lite.js",
+    "flashpage.lite.min.js",
+    "flashpage.d.ts",
+    "flashpage.lite.d.ts",
+    "src",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FlashPageJS/FlashPage.git"
+  },
+  "bugs": {
+    "url": "https://github.com/FlashPageJS/FlashPage/issues"
+  },
+  "homepage": "https://github.com/FlashPageJS/FlashPage#readme",
+  "scripts": {
+    "build": "node ./scripts/build.js",
+    "minify": "node ./scripts/build.js",
+    "test": "node ./test/comprehensiveTests.js && node ./test/masterParametersTests.js && node ./test/unitTests.js && node ./test/bundleTests.js",
+    "test:matrix": "node ./test/masterParametersTests.js",
+    "test:unit": "node ./test/unitTests.js",
+    "test:bundles": "node ./test/bundleTests.js",
+    "test:server": "node ./test/index.js 8085",
+    "test:live": "node ./test/index.js 8085",
+    "check": "node --check flashpage.js flashpage.min.js flashpage.lite.js flashpage.lite.min.js && find src test scripts -name '*.js' -exec node --check {} +"
+  },
+  "keywords": [
+    "prefetch",
+    "prerender",
+    "speculation-rules",
+    "performance",
+    "page-speed",
+    "instant-navigation",
+    "web-vitals",
+    "core-web-vitals",
+    "fast-page"
+  ],
+  "author": "Flash Page Contributors",
+  "license": "GPL-3.0-or-later"
+}

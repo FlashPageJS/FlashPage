@@ -1,0 +1,20 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>.</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<a href="2.html">.</a>
+
+<script>
+addEventListener('load', async (event, constants, environment) => {
+  const $a = document.querySelector('a')
+  if (window.PointerEvent) {
+    $a.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true, pointerType: 'mouse' }))
+    $a.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' }))
+  }
+  $a.dispatchEvent(new MouseEvent('mouseover'))
+  await new Promise(_ => setTimeout(_, constants.INSTANTPAGE_HOVER_DELAY + environment.pageLoadTime + constants.LOAD_TIME_TOLERANCE))
+  $a.click()
+})
+</script>
+<script src="../flashpage.js" type="module"></script>

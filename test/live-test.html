@@ -1,0 +1,1104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flash Page v1.0.0 — Live HTML Test Workbench</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: rgba(22, 30, 46, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.25);
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --code-bg: #040711;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1240px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      font-size: 32px;
+      filter: drop-shadow(0 0 12px var(--accent));
+    }
+
+    .logo h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #fff, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      border: 1px solid var(--card-border);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+    }
+
+    .badge.active {
+      background: rgba(56, 189, 248, 0.12);
+      border-color: rgba(56, 189, 248, 0.3);
+      color: var(--accent);
+    }
+
+    .badge.healthy {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.3);
+      color: var(--success);
+    }
+
+    .badge.backpressure {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: var(--danger);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    /* Grid Layout */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .card h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Controls */
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button, .btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    button:hover, .btn:hover {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: #040711;
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+
+    button.primary:hover {
+      background: #7dd3fc;
+    }
+
+    button.danger {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: var(--danger);
+      color: #fca5a5;
+    }
+
+    button.danger:hover {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    label {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    label.checkbox-label {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    select, input[type="text"], input[type="number"] {
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      outline: none;
+    }
+
+    select:focus, input:focus {
+      border-color: var(--accent);
+    }
+
+    /* Links Matrix */
+    .links-table {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .link-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      transition: background 0.15s;
+    }
+
+    .link-row:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .link-row a {
+      color: #7dd3fc;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: color 0.15s;
+      position: relative;
+    }
+
+    .link-row a:hover {
+      text-decoration: underline;
+    }
+
+    .link-meta {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .tag-allowed {
+      color: var(--success);
+      background: rgba(16, 185, 129, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .tag-denied {
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* Console & DOM Inspector */
+    pre, .terminal {
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.6;
+      max-height: 250px;
+      overflow-y: auto;
+      color: #cbd5e1;
+    }
+
+    .terminal-line {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      padding: 2px 0;
+    }
+
+    .terminal-time {
+      color: #64748b;
+      min-width: 65px;
+    }
+
+    .terminal-event {
+      color: var(--accent);
+      font-weight: 600;
+      min-width: 100px;
+    }
+
+    .terminal-data {
+      color: #e2e8f0;
+      word-break: break-all;
+    }
+
+    /* Trajectory Canvas / Area */
+    .trajectory-zone {
+      background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.05) 0%, rgba(0, 0, 0, 0.35) 100%);
+      border: 1px dashed rgba(56, 189, 248, 0.35);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      position: relative;
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .trajectory-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .trajectory-telemetry {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--accent);
+      margin-top: 6px;
+    }
+
+    .trajectory-targets {
+      display: flex;
+      justify-content: space-around;
+      gap: 16px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+
+    .target-box {
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 14px 20px;
+      background: rgba(255, 255, 255, 0.03);
+      transition: all 0.2s;
+    }
+
+    .target-box:hover {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    /* Programmatic Bar */
+    .programmatic-bar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+    }
+
+    /* Viewport Spacer */
+    .viewport-spacer {
+      border: 1px dashed rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 12px;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <div>
+        <h1>Flash Page v1.0.0 — Live HTML Test Workbench</h1>
+        <p style="font-size: 12px; color: var(--text-muted);">Real-Time Speculation Rules, Trajectory &amp; Backpressure Visualizer</p>
+      </div>
+    </div>
+    <div class="badges">
+      <div id="badge-engine" class="badge active">Engine: Initializing...</div>
+      <div id="badge-preloaded" class="badge">Preloaded: 0</div>
+      <div id="badge-inflight" class="badge">In-Flight: 0</div>
+      <div id="badge-health" class="badge healthy">Server: Normal</div>
+      <div id="badge-hud" class="badge" title="Press Ctrl+Shift+F">HUD: Ctrl+Shift+F</div>
+      <div id="badge-metrics" class="badge">Metrics: 0</div>
+    </div>
+  </header>
+
+  <!-- Action Bar -->
+  <div class="btn-group">
+    <button class="primary" id="btn-toggle-hud">
+      <span>🖥️ Toggle DevTools HUD</span>
+      <kbd style="background:rgba(0,0,0,0.3);padding:2px 5px;border-radius:4px;font-size:10px;">Ctrl+Shift+F</kbd>
+    </button>
+    <button class="danger" id="btn-simulate-429">
+      <span>🛡️ Simulate 429 Backpressure (30s)</span>
+    </button>
+    <button id="btn-add-dynamic-link">
+      <span>➕ Dynamically Insert Link (SPA Observer)</span>
+    </button>
+    <button id="btn-test-markov">
+      <span>🧠 Test Markov AI Transition</span>
+    </button>
+    <button id="btn-query-metrics">
+      <span>📊 Query Telemetry Metrics</span>
+    </button>
+    <button id="btn-burst-queue" style="border-color:var(--accent);color:#38bdf8;">
+      <span>⚡ Test Burst Queue (6 URLs)</span>
+    </button>
+    <button id="btn-clear-preloads">
+      <span>🧹 Clear History &amp; Session</span>
+    </button>
+    <button id="btn-reinit">
+      <span>🔄 Reset &amp; Re-Initialize</span>
+    </button>
+  </div>
+
+  <!-- Programmatic Preload Testing Bar -->
+  <div class="card" style="padding: 14px 20px;">
+    <h2 style="margin-bottom: 8px;">
+      <span>⚡ Programmatic Preload API (<code style="font-size:12px;">preload(url, priority)</code>)</span>
+    </h2>
+    <div class="programmatic-bar">
+      <input type="text" id="api-preload-url" value="/programmatic-demo.html" placeholder="/path/to/page" style="flex: 1; min-width: 220px;">
+      <select id="api-preload-priority" style="width: 110px;">
+        <option value="high" selected>high</option>
+        <option value="low">low</option>
+      </select>
+      <button class="primary" id="btn-api-preload">
+        <span>⚡ Call preload()</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <!-- Column 1: Configuration Form -->
+    <div class="card">
+      <h2>
+        <span>⚙️ Live Configuration Dashboard (All 20 Parameters)</span>
+        <button id="btn-apply-config" class="primary" style="padding:4px 10px;font-size:11px;">Apply Settings</button>
+      </h2>
+      <div class="form-grid">
+        <label>
+          Intensity Strategy:
+          <select id="cfg-intensity">
+            <option value="65" selected>65ms Hover Delay (Default)</option>
+            <option value="120">120ms Hover Delay</option>
+            <option value="300">300ms Hover Delay</option>
+            <option value="mousedown">mousedown (Tap &amp; Click)</option>
+            <option value="mousedown-only">mousedown-only</option>
+            <option value="viewport">viewport (Mobile Only)</option>
+            <option value="viewport-all">viewport-all (All Screens)</option>
+            <option value="predictive">predictive (Cursor Vector)</option>
+            <option value="intent-cone">intent-cone (Velocity &amp; Angle)</option>
+          </select>
+        </label>
+        <label>
+          Speculation Rules Engine:
+          <select id="cfg-specrules">
+            <option value="prefetch" selected>prefetch</option>
+            <option value="prerender">prerender</option>
+            <option value="no">no (fallback to link/fetch)</option>
+          </select>
+        </label>
+        <label>
+          Max Concurrent In-Flight:
+          <input type="number" id="cfg-max-concurrent" value="3" min="1" max="10">
+        </label>
+        <label>
+          Hover Delay (Explicit ms):
+          <input type="number" id="cfg-delay-hover" value="65" min="0" max="1000">
+        </label>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;">
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfg-whitelist"> Whitelist Mode
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfg-allow-query"> Allow Query String
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfg-allow-external"> Allow External Origins
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfg-predictive"> Predictive Trajectory
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfg-intent-cone" checked> 3-Point Intent Cone
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfg-subresources"> Subresource Pre-warm
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfg-markov" checked> Markov AI Navigation
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfg-debug" checked> Console Debug Logging
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfg-data-saver" checked> Respect Data Saver
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfg-battery" checked> Respect Battery Saver
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfg-safari-fallback" checked> Safari Fetch Fallback
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfg-custom-filter"> Custom Filter Rule
+        </label>
+      </div>
+    </div>
+
+    <!-- Column 2: Live DOM Inspector -->
+    <div class="card">
+      <h2>
+        <span>🔍 Live DOM Head Inspector</span>
+        <span id="dom-count-badge" class="badge">0 rules</span>
+      </h2>
+      <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">
+        Real-time observation of injected &lt;script type="speculationrules"&gt; and &lt;link rel="prefetch"&gt; tags:
+      </p>
+      <pre id="dom-head-inspector">&lt;!-- Waiting for Flash Page prefetch actions... --&gt;</pre>
+    </div>
+
+  </div>
+
+  <!-- Trajectory Zone -->
+  <div class="trajectory-zone" id="trajectory-zone">
+    <div>
+      <span style="font-size:14px;font-weight:600;color:var(--accent);">🧭 Cursor Trajectory &amp; Intent Cone Test Zone</span>
+      <p class="trajectory-hint">Move your mouse swiftly toward any target below. Flash Page projects your velocity vector and preloads before the cursor touches!</p>
+      <div class="trajectory-telemetry" id="trajectory-telemetry">Cursor: (X: --, Y: --) | Velocity: -- px/ms | Vector: Idle</div>
+    </div>
+    <div class="trajectory-targets">
+      <div class="target-box">
+        <a href="/target-alpha.html" data-flash-target>Target Alpha</a>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Vector Target 1</div>
+      </div>
+      <div class="target-box">
+        <a href="/target-beta.html" data-flash-target>Target Beta</a>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Vector Target 2</div>
+      </div>
+      <div class="target-box">
+        <a href="/target-gamma.html" data-flash-target>Target Gamma</a>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Vector Target 3</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Links Verification Matrix -->
+  <div class="card">
+    <h2>
+      <span>🧪 Link Scenario Verification Matrix (17 Comprehensive Edge-Cases)</span>
+      <span style="font-size:11px;color:var(--text-muted);">Hover or tap links to verify policy filtering</span>
+    </h2>
+
+    <div class="links-table">
+      <!-- 1. Standard Links -->
+      <div class="link-row">
+        <div>
+          <a href="/test-page-1.html">Standard Eligible Same-Origin Link</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>/test-page-1.html</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-allowed">Allowed</span>
+          <span>Hover 65ms</span>
+        </div>
+      </div>
+
+      <!-- 2. Fast Hover Attribute -->
+      <div class="link-row">
+        <div>
+          <a href="/test-page-fast.html" data-flash-intensity="20">Ultra-Fast 20ms Hover Override</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>data-flash-intensity="20"</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-allowed">Allowed</span>
+          <span>Fast Hover</span>
+        </div>
+      </div>
+
+      <!-- 3. Whitelisted with data-flash -->
+      <div class="link-row">
+        <div>
+          <a href="/test-whitelisted.html" data-flash>Explicitly Whitelisted Link</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>data-flash</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-allowed">Allowed</span>
+          <span>Whitelist Match</span>
+        </div>
+      </div>
+
+      <!-- 4. Whitelisted with legacy data-instant -->
+      <div class="link-row">
+        <div>
+          <a href="/test-legacy-whitelisted.html" data-instant>Legacy Whitelisted Link (instant.page compatibility)</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>data-instant</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-allowed">Allowed</span>
+          <span>Legacy Whitelist</span>
+        </div>
+      </div>
+
+      <!-- 5. Blacklisted with data-no-flash -->
+      <div class="link-row">
+        <div>
+          <a href="/test-ignored.html" data-no-flash>Manually Blacklisted Link</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>data-no-flash</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-denied">Ignored</span>
+          <span>Blacklist Guard</span>
+        </div>
+      </div>
+
+      <!-- 6. Blacklisted with legacy data-no-instant -->
+      <div class="link-row">
+        <div>
+          <a href="/test-legacy-ignored.html" data-no-instant>Legacy Blacklisted Link (instant.page compatibility)</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>data-no-instant</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-denied">Ignored</span>
+          <span>Legacy Blacklist</span>
+        </div>
+      </div>
+
+      <!-- 7. Same-Page Hash Anchor Guard -->
+      <div class="link-row">
+        <div>
+          <a href="#section-top">Same-Page Hash Anchor Link</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>#section-top</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-denied">Ignored</span>
+          <span>Hash Guard</span>
+        </div>
+      </div>
+
+      <!-- 8. New Tab Target Blank Guard -->
+      <div class="link-row">
+        <div>
+          <a href="/test-newtab.html" target="_blank">New Tab Destination Link</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>target="_blank"</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-denied">Ignored</span>
+          <span>Target Guard</span>
+        </div>
+      </div>
+
+      <!-- 9. Download Attribute Guard -->
+      <div class="link-row">
+        <div>
+          <a href="/archive.zip" download>Download File Link</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>[download]</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-denied">Ignored</span>
+          <span>Download Guard</span>
+        </div>
+      </div>
+
+      <!-- 10. Rel Nofollow Guard -->
+      <div class="link-row">
+        <div>
+          <a href="/untrusted.html" rel="nofollow">Search Engine Nofollow Link</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>rel="nofollow"</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-denied">Ignored</span>
+          <span>SEO Guard</span>
+        </div>
+      </div>
+
+      <!-- 11. Rails/Turbo/HTMX Mutation Guards -->
+      <div class="link-row">
+        <div>
+          <a href="/delete-item" data-turbo-method="delete">Turbo Destructive Action Link</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>data-turbo-method="delete"</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-denied">Ignored</span>
+          <span>Mutation Guard</span>
+        </div>
+      </div>
+
+      <div class="link-row">
+        <div>
+          <a href="/submit-post" hx-post="/api/submit">HTMX Declarative POST Link</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>hx-post</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-denied">Ignored</span>
+          <span>HTMX Guard</span>
+        </div>
+      </div>
+
+      <!-- 12. Sensitive Endpoint Paths -->
+      <div class="link-row">
+        <div>
+          <a href="/auth/logout">Session Signout / Logout Route</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>/logout</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-denied">Ignored</span>
+          <span>Security Guard</span>
+        </div>
+      </div>
+
+      <!-- 13. Query String Link -->
+      <div class="link-row">
+        <div>
+          <a href="/catalog?category=books&amp;sort=price">Query Parameter Link</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>?sort=price</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-denied" id="tag-query-status">Default Blocked</span>
+          <span>Query Guard</span>
+        </div>
+      </div>
+
+      <!-- 14. External Cross-Origin Link -->
+      <div class="link-row">
+        <div>
+          <a href="https://example.org/about">External Origin Link</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>https://example.org</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-denied" id="tag-external-status">Default Blocked</span>
+          <span>Origin Guard</span>
+        </div>
+      </div>
+
+      <!-- 15. External with data-flash override -->
+      <div class="link-row">
+        <div>
+          <a href="https://wikipedia.org/wiki/Speculation_Rules_API" data-flash>External Whitelisted Override</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>data-flash</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-allowed">Allowed</span>
+          <span>Per-Link Whitelist</span>
+        </div>
+      </div>
+
+      <!-- 16. Custom Filter Blocked Link -->
+      <div class="link-row">
+        <div>
+          <a href="/filter-blocked-demo.html">Custom Filter Rule Target</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>/filter-blocked-demo.html</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-denied" id="tag-filter-status">Conditional</span>
+          <span>Filter Callback</span>
+        </div>
+      </div>
+
+      <!-- 17. Anchor without href -->
+      <div class="link-row">
+        <div>
+          <a style="cursor:default;color:var(--text-muted);">Anchor Element without href attribute</a>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>&lt;a&gt;</code></span>
+        </div>
+        <div class="link-meta">
+          <span class="tag-denied">Ignored</span>
+          <span>Href Guard</span>
+        </div>
+      </div>
+
+      <!-- Container for Dynamically Added Links -->
+      <div id="dynamic-links-container"></div>
+    </div>
+  </div>
+
+  <!-- Live Event Stream Console -->
+  <div class="card">
+    <h2>
+      <span>📡 Live CustomEvent Stream Console</span>
+      <button id="btn-clear-terminal" style="padding:2px 8px;font-size:10px;">Clear Console</button>
+    </h2>
+    <div class="terminal" id="event-terminal">
+      <div class="terminal-line">
+        <span class="terminal-time">00:00:00</span>
+        <span class="terminal-event">SYSTEM</span>
+        <span class="terminal-data">Waiting for Flash Page browser events...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Viewport Scrolling Section -->
+  <div class="viewport-spacer">
+    <p>Scroll down to test Viewport Intersection preloading...</p>
+    <div style="height: 350px;"></div>
+    <div class="link-row" style="max-width: 500px; margin: 0 auto; text-align: left;">
+      <div>
+        <a href="/viewport-article.html">Viewport Triggered Destination Link</a>
+        <div style="font-size:10px;color:var(--text-muted);">Preloads upon entering viewport when intensity is viewport or viewport-all</div>
+      </div>
+      <div class="link-meta">
+        <span class="tag-allowed">Viewport Mode</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Live Workbench Controller Script -->
+<script type="module">
+  import {
+    init,
+    preload,
+    destroy,
+    status,
+    toggleHUD,
+    setBackpressure,
+    isServerHealthy,
+    isEnvironmentEligible,
+    getConfig,
+    setConfig,
+    resetConfig,
+    recordTransition,
+    predictNextLink,
+    getMetrics
+  } from '../flashpage.js'
+
+  const terminal = document.getElementById('event-terminal')
+  const domInspector = document.getElementById('dom-head-inspector')
+  const domCountBadge = document.getElementById('dom-count-badge')
+
+  function logTerminal(event, data) {
+    const now = new Date()
+    const time = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0')
+    const line = document.createElement('div')
+    line.className = 'terminal-line'
+    line.innerHTML = `
+      <span class="terminal-time">${time}</span>
+      <span class="terminal-event">${event}</span>
+      <span class="terminal-data">${typeof data === 'object' ? JSON.stringify(data) : data}</span>
+    `
+    terminal.appendChild(line)
+    terminal.scrollTop = terminal.scrollHeight
+  }
+
+  function updateStatusUI() {
+    try {
+      const s = status()
+      document.getElementById('badge-engine').textContent = `Engine: ${s.engine}`
+      document.getElementById('badge-preloaded').textContent = `Preloaded: ${s.preloadedCount}`
+      document.getElementById('badge-inflight').textContent = `In-Flight: ${s.inflightCount}`
+
+      const metrics = getMetrics()
+      document.getElementById('badge-metrics').textContent = `Metrics: ${metrics.length}`
+
+      const healthBadge = document.getElementById('badge-health')
+      if (s.isHealthy) {
+        healthBadge.textContent = 'Server: Normal'
+        healthBadge.className = 'badge healthy'
+      } else {
+        const remaining = Math.max(0, Math.ceil((s.backpressureUntil - Date.now()) / 1000))
+        healthBadge.textContent = `Server: Backpressure (${remaining}s)`
+        healthBadge.className = 'badge backpressure'
+      }
+
+      updateDOMInspector()
+    } catch {}
+  }
+
+  function updateDOMInspector() {
+    const rules = document.querySelectorAll('script[data-flash-rules]')
+    const links = document.querySelectorAll('link[data-flash-link]')
+    const total = rules.length + links.length
+    domCountBadge.textContent = `${total} node${total === 1 ? '' : 's'}`
+
+    if (total === 0) {
+      domInspector.textContent = '<!-- No Speculation Rules or Prefetch link tags injected yet -->'
+      return
+    }
+
+    let code = ''
+    rules.forEach((el, idx) => {
+      code += `<!-- Injected Speculation Rule #${idx + 1} -->\n`
+      try {
+        const parsed = JSON.parse(el.textContent)
+        code += `<script type="speculationrules">\n${JSON.stringify(parsed, null, 2)}\n<\/script>\n\n`
+      } catch {
+        code += `<script type="speculationrules">${el.textContent}<\/script>\n\n`
+      }
+    })
+
+    links.forEach((el, idx) => {
+      code += `<!-- Injected Link Prefetch #${idx + 1} -->\n`
+      code += `<link rel="${el.rel}" href="${el.href}" as="${el.as || 'document'}" fetchpriority="${el.fetchPriority || 'auto'}">\n\n`
+    })
+
+    domInspector.textContent = code.trim()
+  }
+
+  // Event Listeners for Flash Page Custom Events
+  window.addEventListener('flash:ready', (e) => {
+    logTerminal('flash:ready', e.detail)
+    updateStatusUI()
+  })
+
+  window.addEventListener('flash:preload', (e) => {
+    logTerminal('flash:preload', e.detail)
+    updateStatusUI()
+  })
+
+  window.addEventListener('flash:metric', (e) => {
+    logTerminal('flash:metric', e.detail)
+    updateStatusUI()
+  })
+
+  // Action Bar Buttons
+  document.getElementById('btn-toggle-hud').onclick = () => {
+    toggleHUD()
+  }
+
+  document.getElementById('btn-simulate-429').onclick = () => {
+    setBackpressure(30)
+    logTerminal('BACKPRESSURE', 'Triggered 30s server backoff (HTTP 429 emulation)')
+    updateStatusUI()
+  }
+
+  document.getElementById('btn-clear-terminal').onclick = () => {
+    terminal.innerHTML = ''
+  }
+
+  document.getElementById('btn-clear-preloads').onclick = () => {
+    sessionStorage.clear()
+    localStorage.removeItem('flash_markov')
+    logTerminal('STORAGE', 'Cleared sessionStorage and localStorage flash_markov')
+  }
+
+  // Programmatic Preload Button
+  document.getElementById('btn-api-preload').onclick = () => {
+    const url = document.getElementById('api-preload-url').value
+    const priority = document.getElementById('api-preload-priority').value
+    preload(url, priority)
+    logTerminal('PROGRAMMATIC', `Executed preload("${url}", "${priority}")`)
+    updateStatusUI()
+  }
+
+  // Markov AI Test Button
+  document.getElementById('btn-test-markov').onclick = () => {
+    recordTransition('/cart', '/checkout')
+    recordTransition('/cart', '/checkout')
+    const predicted = predictNextLink('/cart')
+    logTerminal('MARKOV', { recorded: ['/cart -> /checkout'], predictedFromCart: predicted })
+  }
+
+  // Query Telemetry Metrics Button
+  document.getElementById('btn-query-metrics').onclick = () => {
+    const metrics = getMetrics()
+    logTerminal('METRICS', metrics.length > 0 ? metrics : 'No navigation conversion metrics recorded yet.')
+  }
+
+  // Burst Queue Test Button (Demonstrates Concurrency Limiter)
+  let _burstBatch = 0
+  document.getElementById('btn-burst-queue').onclick = () => {
+    _burstBatch++
+    for (let i = 1; i <= 6; i++) {
+      preload(`/burst-batch-${_burstBatch}-page-${i}.html`, 'auto')
+    }
+    logTerminal('BURST_TEST', `Queued 6 concurrent URLs for batch #${_burstBatch} to test concurrency queue`)
+    updateStatusUI()
+  }
+
+  // Dynamic Link Inserter
+  let _dynLinkCount = 0
+  document.getElementById('btn-add-dynamic-link').onclick = () => {
+    _dynLinkCount++
+    const container = document.getElementById('dynamic-links-container')
+    const row = document.createElement('div')
+    row.className = 'link-row'
+    row.innerHTML = `
+      <div>
+        <a href="/dynamic-article-${_dynLinkCount}.html">Dynamically Inserted Article #${_dynLinkCount}</a>
+        <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>MutationObserver</code></span>
+      </div>
+      <div class="link-meta">
+        <span class="tag-allowed">Observed</span>
+        <span>Dynamic DOM</span>
+      </div>
+    `
+    container.appendChild(row)
+    logTerminal('MUTATION', `Inserted /dynamic-article-${_dynLinkCount}.html into DOM`)
+  }
+
+  // Trajectory Telemetry Visualizer
+  const trajZone = document.getElementById('trajectory-zone')
+  const trajTelemetry = document.getElementById('trajectory-telemetry')
+  let lastX = 0, lastY = 0, lastT = Date.now()
+
+  trajZone.addEventListener('mousemove', (e) => {
+    const now = Date.now()
+    const dt = Math.max(1, now - lastT)
+    const dx = e.clientX - lastX
+    const dy = e.clientY - lastY
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    const speed = (dist / dt).toFixed(2)
+    const angle = Math.round(Math.atan2(dy, dx) * 180 / Math.PI)
+    trajTelemetry.textContent = `Cursor: (X: ${e.clientX}, Y: ${e.clientY}) | Velocity: ${speed} px/ms | Vector Angle: ${angle}°`
+    lastX = e.clientX
+    lastY = e.clientY
+    lastT = now
+  })
+
+  // Configuration Form Apply
+  document.getElementById('btn-apply-config').onclick = () => {
+    const intensityVal = document.getElementById('cfg-intensity').value
+    const parsedIntensity = isNaN(parseInt(intensityVal)) ? intensityVal : parseInt(intensityVal)
+    const hasCustomFilter = document.getElementById('cfg-custom-filter').checked
+
+    const newConfig = {
+      intensity: parsedIntensity,
+      specrules: document.getElementById('cfg-specrules').value,
+      maxConcurrent: parseInt(document.getElementById('cfg-max-concurrent').value, 10),
+      delayOnHover: parseInt(document.getElementById('cfg-delay-hover').value, 10),
+      whitelist: document.getElementById('cfg-whitelist').checked,
+      allowQueryString: document.getElementById('cfg-allow-query').checked,
+      allowExternalLinks: document.getElementById('cfg-allow-external').checked,
+      predictive: document.getElementById('cfg-predictive').checked,
+      intentCone: document.getElementById('cfg-intent-cone').checked,
+      subresources: document.getElementById('cfg-subresources').checked,
+      markov: document.getElementById('cfg-markov').checked,
+      debug: document.getElementById('cfg-debug').checked,
+      respectDataSaver: document.getElementById('cfg-data-saver').checked,
+      respectBattery: document.getElementById('cfg-battery').checked,
+      safariFallback: document.getElementById('cfg-safari-fallback').checked,
+      filter: hasCustomFilter ? (url) => !url.includes('filter-blocked') : null
+    }
+
+    destroy()
+    init(newConfig)
+
+    document.getElementById('tag-query-status').textContent = newConfig.allowQueryString ? 'Allowed' : 'Default Blocked'
+    document.getElementById('tag-query-status').className = newConfig.allowQueryString ? 'tag-allowed' : 'tag-denied'
+
+    document.getElementById('tag-external-status').textContent = newConfig.allowExternalLinks ? 'Allowed' : 'Default Blocked'
+    document.getElementById('tag-external-status').className = newConfig.allowExternalLinks ? 'tag-allowed' : 'tag-denied'
+
+    document.getElementById('tag-filter-status').textContent = hasCustomFilter ? 'Custom Filter Blocked' : 'Default Allowed'
+    document.getElementById('tag-filter-status').className = hasCustomFilter ? 'tag-denied' : 'tag-allowed'
+
+    logTerminal('CONFIG_APPLY', newConfig)
+    updateStatusUI()
+  }
+
+  document.getElementById('btn-reinit').onclick = () => {
+    destroy()
+    init()
+    logTerminal('RE-INIT', 'Flash Page re-initialized with default settings')
+    updateStatusUI()
+  }
+
+  // Polling loop for status updates (e.g. countdown on backpressure)
+  setInterval(updateStatusUI, 1000)
+  updateStatusUI()
+</script>
+
+</body>
+</html>

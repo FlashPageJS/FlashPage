@@ -1,0 +1,35 @@
+# Test Suites & Fixtures
+test/
+tests/
+
+# Build Scripts & Internal Tools
+scripts/
+
+# GitHub Workflows & Repo Config
+.github/
+.nvmrc
+.gitignore
+.npmignore
+
+# Scratch & Temporary
+scratch/
+.tmp/
+tmp/
+*.log
+
+# OS & Editor Metadata
+.DS_Store
+._*
+.vscode/
+.idea/
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Archives & Coverage
+*.tgz
+*.tar.gz
+*.zip
+coverage/
+
