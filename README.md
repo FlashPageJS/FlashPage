@@ -21,6 +21,7 @@
 - [Modular Source Architecture (`src/`)](#modular-source-architecture-src)
 - [Universal Distribution: Full vs. Lite](#universal-distribution-full-vs-lite)
 - [Drop-In Migration from instant.page](#drop-in-migration-from-instantpage)
+  - [Feature Comparison: instant.page vs. Flash Page](#feature-comparison-instantpage-vs-flash-page)
 - [Quick Start by Platform](#quick-start-by-platform)
   - [Plain HTML / Static Sites](#1-plain-html--static-sites)
   - [WordPress](#2-wordpress)
@@ -204,6 +205,37 @@ Upgrading existing websites from `instant.page` to **Flash Page** is **100% back
 2. **Anchor Marker Compatibility**: Flash Page recognizes existing `data-instant` and `data-no-instant` link attributes alongside modern `data-flash` and `data-no-flash`.
 3. **Dataset Parameter Fallbacks**: Existing body configuration attributes (`data-instant-intensity`, `data-instant-whitelist`, `data-instant-allow-query-string`, `data-instant-allow-external-links`) continue to work automatically.
 4. **Instant Upgrade**: You immediately get modern Speculation Rules (Chrome 121+), Safari `fetch()` warming, Server Backpressure (429/503 protection), In-Browser DevTools HUD, and history-based prefetching.
+
+### Feature Comparison: `instant.page` vs. `Flash Page`
+
+| Feature / Capability | `instant.page` (v5.2.0) | `Flash Page` (v1.0.0) | Architectural Advantage |
+| :--- | :---: | :---: | :--- |
+| **Native Speculation Rules (Document Rules)** | ❌ | ✅ | Zero-JS browser-level speculation in Chrome/Edge 121+ |
+| **Prerender Engine (Full Background Rendering)** | ❌ | ✅ | Instant page display with pre-executed scripts & styles |
+| **Standard `<link rel="prefetch">` Support** | ✅ | ✅ | Universal fallback across Firefox and older Chromium |
+| **Safari / WebKit Low-Priority `fetch()` Warming** | ❌ | ✅ | Safari ignores document prefetch; Flash Page warms WebKit cache |
+| **Mouse Hover Delay Detection** | ✅ *(65ms)* | ✅ *(65ms)* | Full support with bubbling `pointerover` & boundary detection |
+| **Touch / Click Start (`pointerdown`)** | ✅ | ✅ | Differentiates hardware pointer types (`event.pointerType`) |
+| **Cursor Velocity & Intent Cone Prediction** | ❌ | ✅ | Vector projection prefetches links before mouse even lands |
+| **Smart History Navigation (Markov Model AI)** | ❌ | ✅ | Learns user journeys locally ($<1\text{ KB}$, no server calls) |
+| **Viewport Prefetching with Rapid Scroll Guard** | ⚠️ *(Basic)* | ✅ | Pauses prefetching during rapid scrolling to preserve bandwidth |
+| **Critical Subresource Pre-warming (CSS & Fonts)** | ❌ | ✅ | Discovers & warms stylesheets and web fonts ahead of navigation |
+| **Concurrency-Controlled Queue Throttling** | ❌ | ✅ | Caps concurrent requests (default 3) to prevent socket congestion |
+| **Server Backpressure Protection (HTTP 429 / 503)** | ❌ | ✅ | Reads `Retry-After` headers and pauses prefetching automatically |
+| **Battery Level Guard ($<20\%$ & Discharging)** | ❌ | ✅ | Battery API integration prevents battery drain on mobile |
+| **Device Memory Guard ($\le 1\text{ GB}$ RAM)** | ❌ | ✅ | Skips preloading on low-spec hardware to prevent browser lag |
+| **Data Saver (`Save-Data`) & 2G Network Guard** | ✅ | ✅ | Automatically respects user privacy and metered bandwidth |
+| **Destructive Action URL Protection** | ❌ | ✅ | Auto-ignores `/logout`, `/delete`, `/destroy`, `/remove` |
+| **Modern Action Attribute Filters** | ❌ | ✅ | Automatically filters `[data-method]`, `[hx-*]`, `[data-turbo-method]` |
+| **Target Exclusion (`target="_blank"`)** | ❌ | ✅ | Skips new-tab links in both JS and native Speculation Rules |
+| **Dynamic SPAs (`MutationObserver`)** | ❌ | ✅ | Automatically captures newly mounted links in React, Vue, HTMX |
+| **React Hook (`useFlashPage`) & Vue Directive (`vFlash`)** | ❌ | ✅ | First-class framework integration utilities included |
+| **In-Browser DevTools HUD (`Ctrl + Shift + F`)** | ❌ | ✅ | Real-time visual overlay, queue depths & glowing link highlights |
+| **Real-Time Conversion Telemetry (`flash:metric`)** | ❌ | ✅ | Performance Navigation Timing API integration & hit-rate metrics |
+| **Programmatic API (`preload()`, `destroy()`, `status()`)** | ❌ | ✅ | Full runtime JavaScript API control for programmatic navigation |
+| **TypeScript Type Declarations (`.d.ts`)** | ❌ | ✅ | Complete type safety for TypeScript & modern bundler projects |
+| **Drop-In Compatibility with `data-instant-*`** | N/A | ✅ | 100% backward compatible without modifying existing markup |
+| **External Dependencies** | 0 | 0 | 100% Pure Vanilla JavaScript, zero build or runtime lock-in |
 
 ---
 
