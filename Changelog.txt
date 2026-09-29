@@ -1,0 +1,15 @@
+Flash Page Changelog
+====================
+
+Version 1.0.1 (September 29, 2026)
+-----------------------------------
+
+Fixed:
+- Server Backpressure: Added robust Retry-After header parsing for numeric seconds and HTTP-date strings, with a 30s default fallback and 5-minute safety cap.
+- Markov Storage Bounds: Capped the model to 50 source paths (a few KB at most) using LRU recency so local storage stays bounded.
+- Markov Path Learning: Capped destinations to 5 per path and evicted the weakest existing destination so new links can be learned.
+- Path Filtering: Replaced substring matching with path-segment regex so innocent URLs like /blog/how-to-remove-stains are not skipped.
+
+Changed:
+- Added instant.page vs Flash Page feature comparison table to README.
+- Rebuilt all production bundles with v1.0.1 banners and updated TypeScript definitions.
