@@ -827,13 +827,16 @@ function recordTransition(fromPath, toPath) {
         const raw = localStorage.getItem('flash_markov')
         const matrix = raw ? JSON.parse(raw) : {}
 
-        matrix[fromPath] = matrix[fromPath] || {}
-        matrix[fromPath][toPath] = (matrix[fromPath][toPath] || 0) + 1
+        const entry = matrix[fromPath] || {}
+        delete matrix[fromPath] // re-insert so recently used paths survive
+        entry[toPath] = (entry[toPath] || 0) + 1
+        matrix[fromPath] = Object.fromEntries(
+            Object.entries(entry).sort((a, b) => b[1] - a[1]).slice(0, 5)
+        )
 
-        // Cap matrix to 50 paths to guarantee bounded storage (< 1KB)
-        const keys = Object.keys(matrix)
-        if (keys.length > 50) {
-            delete matrix[keys[0]]
+        // Cap matrix to 50 source paths (a few KB at most)
+        if (Object.keys(matrix).length > 50) {
+            delete matrix[Object.keys(matrix)[0]]
         }
 
         localStorage.setItem('flash_markov', JSON.stringify(matrix))

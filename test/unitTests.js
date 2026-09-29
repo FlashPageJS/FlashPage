@@ -122,16 +122,32 @@ const logoutPath = {
 }
 assert.equal(isPreloadable(logoutPath), false, 'Should reject /logout')
 
-// Test: Markov transition matrix hard cap (max 50 paths)
+// Test: Markov transition matrix hard cap (max 50 paths) and destination pruning (max 5)
 const mockStorage = {}
 globalThis.localStorage = {
     getItem: (k) => mockStorage[k] || null,
     setItem: (k, v) => { mockStorage[k] = v }
 }
-for (let i = 0; i < 70; i++) {
-    recordTransition(`/source-${i}`, `/dest-${i}`)
+
+// 1. Destination pruning to top 5
+for (let d = 1; d <= 8; d++) {
+    recordTransition('/popular-source', `/dest-${d}`)
 }
-const storedMatrix = JSON.parse(mockStorage['flash_markov'])
+let storedMatrix = JSON.parse(mockStorage['flash_markov'])
+const popularDests = Object.keys(storedMatrix['/popular-source'])
+assert.equal(popularDests.length, 5, 'Should cap destinations to top 5')
+
+// 2. 50 source paths cap and LRU recency survival
+for (let i = 0; i < 55; i++) {
+    recordTransition(`/source-${i}`, `/dest-default`)
+    if (i === 30) {
+        // Access popular-source again so its recency updates
+        recordTransition('/popular-source', '/dest-1')
+    }
+}
+storedMatrix = JSON.parse(mockStorage['flash_markov'])
 assert.ok(Object.keys(storedMatrix).length <= 50, 'Markov matrix should never exceed 50 paths')
+assert.ok(storedMatrix['/popular-source'], 'Recently refreshed source path should survive eviction (LRU)')
+assert.ok(!storedMatrix['/source-0'], 'Oldest untouched path should be evicted')
 
 console.log('✅ All Flash Page v1.0.0 Unit Tests Passed!')
