@@ -5,7 +5,7 @@ import { recordTransition } from '../src/markov.js'
 
 globalThis.location = new URL('https://example.com/blog/article-1')
 
-console.log('Running Flash Page v1.0.0 Unit Tests...')
+console.log('Running Flash Page v1.0.1 Unit Tests...')
 
 // Test: Null & Invalid Elements
 assert.equal(isPreloadable(null), false, 'Should reject null')
@@ -159,4 +159,4 @@ assert.ok(Object.keys(storedMatrix).length <= 50, 'Markov matrix should never ex
 assert.ok(storedMatrix['/popular-source'], 'Recently refreshed source path should survive eviction (LRU)')
 assert.ok(!storedMatrix['/source-0'], 'Oldest untouched path should be evicted')
 
-console.log('✅ All Flash Page v1.0.0 Unit Tests Passed!')
+console.log('✅ All Flash Page v1.0.1 Unit Tests Passed!')

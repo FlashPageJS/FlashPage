@@ -1,5 +1,5 @@
 /*!
- * Flash Page Lite v1.0.0
+ * Flash Page Lite v1.0.1
  * Ultra-Lightweight Speculation Rules & Smart Prefetch
  * Copyright (C) 2026 Flash Page Contributors
  * Licensed under the GNU General Public License v3.0 (GPL-3.0-or-later)

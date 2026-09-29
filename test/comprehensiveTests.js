@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { isPreloadable, init, preload, destroy, status, getMetrics } from '../flashpage.js'
 
-console.log('🧪 Starting Flash Page v1.0.0 Exhaustive Test Suite...')
+console.log('🧪 Starting Flash Page v1.0.1 Exhaustive Test Suite...')
 
 // Setup simulated browser environment
 globalThis.location = new URL('https://mywebsite.com/blog/article-1')

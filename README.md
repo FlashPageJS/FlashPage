@@ -1,4 +1,4 @@
-# Flash Page (v1.0.0)
+# Flash Page (v1.0.1)
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
 [![Tests](https://img.shields.io/badge/Tests-110%2B%20Passing-brightgreen.svg)](#development-building--testing)
@@ -208,7 +208,7 @@ Upgrading existing websites from `instant.page` to **Flash Page** is **100% back
 
 ### Feature Comparison: `instant.page` vs. `Flash Page`
 
-| Feature / Capability | `instant.page` (v5.2.0) | `Flash Page` (v1.0.0) | Architectural Advantage |
+| Feature / Capability | `instant.page` (v5.2.0) | `Flash Page` (v1.0.1) | Architectural Advantage |
 | :--- | :---: | :---: | :--- |
 | **Native Speculation Rules (Document Rules)** | ❌ | ✅ | Zero-JS browser-level speculation in Chrome/Edge 121+ |
 | **Prerender Engine (Full Background Rendering)** | ❌ | ✅ | Instant page display with pre-executed scripts & styles |
@@ -217,7 +217,7 @@ Upgrading existing websites from `instant.page` to **Flash Page** is **100% back
 | **Mouse Hover Delay Detection** | ✅ *(65ms)* | ✅ *(65ms)* | Full support with bubbling `pointerover` & boundary detection |
 | **Touch / Click Start (`pointerdown`)** | ✅ | ✅ | Differentiates hardware pointer types (`event.pointerType`) |
 | **Cursor Velocity & Intent Cone Prediction** | ❌ | ✅ | Vector projection prefetches links before mouse even lands |
-| **Smart History Navigation (Markov Model AI)** | ❌ | ✅ | Learns user journeys locally ($<1\text{ KB}$, no server calls) |
+| **Smart History Navigation (Markov Model AI)** | ❌ | ✅ | Learns user journeys locally (a few KB at most, no server calls) |
 | **Viewport Prefetching with Rapid Scroll Guard** | ⚠️ *(Basic)* | ✅ | Pauses prefetching during rapid scrolling to preserve bandwidth |
 | **Critical Subresource Pre-warming (CSS & Fonts)** | ❌ | ✅ | Discovers & warms stylesheets and web fonts ahead of navigation |
 | **Concurrency-Controlled Queue Throttling** | ❌ | ✅ | Caps concurrent requests (default 3) to prevent socket congestion |
@@ -255,7 +255,7 @@ Add the script tag right before your closing `</body>` tag:
 Add this single line to your active theme’s `functions.php`:
 ```php
 function add_flash_page() {
-    wp_enqueue_script('flash-page', get_template_directory_uri() . '/flashpage.min.js', array(), '1.0.0', true);
+    wp_enqueue_script('flash-page', get_template_directory_uri() . '/flashpage.min.js', array(), '1.0.1', true);
 }
 add_action('wp_enqueue_scripts', 'add_flash_page');
 ```

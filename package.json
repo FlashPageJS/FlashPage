@@ -1,6 +1,6 @@
 {
   "name": "flash-page",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Smart prefetching and Speculation Rules manager with cursor trajectory prediction and server backpressure protection.",
   "type": "module",
   "main": "./flashpage.js",

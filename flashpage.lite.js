@@ -1,4 +1,4 @@
-/*! Flash Page Lite v1.0.0 | GPL-3.0-or-later */
+/*! Flash Page Lite v1.0.1 | GPL-3.0-or-later */
 
 const DEFAULT_CONFIG = {
     intensity: 65,

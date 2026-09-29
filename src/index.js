@@ -1,5 +1,5 @@
 /*!
- * Flash Page v1.0.0
+ * Flash Page v1.0.1
  * Universal Speculation Rules & Smart Prefetch Manager
  * Copyright (C) 2026 Flash Page Contributors
  * Licensed under the GNU General Public License v3.0 (GPL-3.0-or-later)
@@ -121,7 +121,7 @@ export function init(customConfig = {}) {
             window.dispatchEvent(new CustomEvent('flash:ready', { detail: { status: status() } }))
         } catch {}
     }
-    logDebug('Flash Page v1.0.0 initialized with engine:', getEngine())
+    logDebug('Flash Page v1.0.1 initialized with engine:', getEngine())
 }
 
 /**
