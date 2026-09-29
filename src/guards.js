@@ -97,7 +97,7 @@ export function isPreloadable(anchor) {
 
     // Action path check (sensitive endpoints)
     const path = urlObj.pathname.toLowerCase()
-    if (path.includes('/logout') || path.includes('/signout') || path.includes('/delete') || path.includes('/destroy') || path.includes('/remove')) {
+    if (/(^|\/)(logout|signout|delete|destroy|remove)(\/|$|\.)/i.test(path)) {
         return false
     }
 

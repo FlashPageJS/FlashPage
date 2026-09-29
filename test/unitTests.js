@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import { isPreloadable, status, getMetrics } from '../flashpage.js'
+import { parseRetryAfter } from '../src/engines.js'
+import { recordTransition } from '../src/markov.js'
 
 globalThis.location = new URL('https://example.com/blog/article-1')
 
@@ -87,5 +89,49 @@ assert.equal(isPreloadable(externalWhitelisted), true, 'Should allow external li
 // Test: Status and Metrics APIs
 assert.equal(typeof status, 'function', 'status() should be a function')
 assert.equal(typeof getMetrics, 'function', 'getMetrics() should be a function')
+
+// Test: parseRetryAfter
+assert.equal(parseRetryAfter(null), 30, 'parseRetryAfter null fallback')
+assert.equal(parseRetryAfter(''), 30, 'parseRetryAfter empty string fallback')
+assert.equal(parseRetryAfter('120'), 120, 'parseRetryAfter numeric seconds')
+assert.equal(parseRetryAfter('0'), 0, 'parseRetryAfter zero')
+assert.equal(parseRetryAfter('999999'), 300, 'parseRetryAfter capped at 300s')
+const futureDate = new Date(Date.now() + 45000).toUTCString()
+const parsedFuture = parseRetryAfter(futureDate)
+assert.ok(parsedFuture >= 40 && parsedFuture <= 50, 'parseRetryAfter HTTP-date string')
+
+// Test: Segment-based Sensitive Path Filtering
+const allowedRemoveWord = {
+    ...validAnchor,
+    href: 'https://example.com/blog/how-to-remove-stains',
+    pathname: '/blog/how-to-remove-stains'
+}
+assert.equal(isPreloadable(allowedRemoveWord), true, 'Should allow /blog/how-to-remove-stains')
+
+const sensitivePath = {
+    ...validAnchor,
+    href: 'https://example.com/api/remove',
+    pathname: '/api/remove'
+}
+assert.equal(isPreloadable(sensitivePath), false, 'Should reject /api/remove')
+
+const logoutPath = {
+    ...validAnchor,
+    href: 'https://example.com/logout',
+    pathname: '/logout'
+}
+assert.equal(isPreloadable(logoutPath), false, 'Should reject /logout')
+
+// Test: Markov transition matrix hard cap (max 50 paths)
+const mockStorage = {}
+globalThis.localStorage = {
+    getItem: (k) => mockStorage[k] || null,
+    setItem: (k, v) => { mockStorage[k] = v }
+}
+for (let i = 0; i < 70; i++) {
+    recordTransition(`/source-${i}`, `/dest-${i}`)
+}
+const storedMatrix = JSON.parse(mockStorage['flash_markov'])
+assert.ok(Object.keys(storedMatrix).length <= 50, 'Markov matrix should never exceed 50 paths')
 
 console.log('✅ All Flash Page v1.0.0 Unit Tests Passed!')

@@ -48,6 +48,12 @@ export function recordTransition(fromPath, toPath) {
         matrix[fromPath] = matrix[fromPath] || {}
         matrix[fromPath][toPath] = (matrix[fromPath][toPath] || 0) + 1
 
+        // Cap matrix to 50 paths to guarantee bounded storage (< 1KB)
+        const keys = Object.keys(matrix)
+        if (keys.length > 50) {
+            delete matrix[keys[0]]
+        }
+
         localStorage.setItem('flash_markov', JSON.stringify(matrix))
     } catch {}
 }

@@ -259,7 +259,7 @@ function isPreloadable(anchor) {
 
     // Action path check (sensitive endpoints)
     const path = urlObj.pathname.toLowerCase()
-    if (path.includes('/logout') || path.includes('/signout') || path.includes('/delete') || path.includes('/destroy') || path.includes('/remove')) {
+    if (/(^|\/)(logout|signout|delete|destroy|remove)(\/|$|\.)/i.test(path)) {
         return false
     }
 
@@ -421,6 +421,15 @@ function preloadUsingLink(url, priority = 'auto') {
     })
 }
 
+function parseRetryAfter(header) {
+    if (!header) return 30
+    const asSeconds = Number(header)
+    const parsed = Number.isFinite(asSeconds)
+        ? asSeconds
+        : (Date.parse(header) - Date.now()) / 1000
+    return Number.isFinite(parsed) ? Math.min(300, Math.max(0, Math.round(parsed))) : 30
+}
+
 async function preloadUsingFetch(url) {
     try {
         const res = await fetch(url, {
@@ -432,7 +441,7 @@ async function preloadUsingFetch(url) {
         const config = getConfig()
         // Backpressure handling (429 Too Many Requests or 503 Service Unavailable)
         if (config.backpressure && (res.status === 429 || res.status === 503)) {
-            const retryAfter = parseInt(res.headers.get('Retry-After'), 10) || 30
+            const retryAfter = parseRetryAfter(res.headers.get('Retry-After'))
             setBackpressure(retryAfter)
             logDebug(`Server 429/503 received. Backing off prefetch for ${retryAfter}s`)
         }

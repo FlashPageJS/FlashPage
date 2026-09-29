@@ -148,6 +148,15 @@ export function preloadUsingLink(url, priority = 'auto') {
     })
 }
 
+export function parseRetryAfter(header) {
+    if (!header) return 30
+    const asSeconds = Number(header)
+    const parsed = Number.isFinite(asSeconds)
+        ? asSeconds
+        : (Date.parse(header) - Date.now()) / 1000
+    return Number.isFinite(parsed) ? Math.min(300, Math.max(0, Math.round(parsed))) : 30
+}
+
 export async function preloadUsingFetch(url) {
     try {
         const res = await fetch(url, {
@@ -159,7 +168,7 @@ export async function preloadUsingFetch(url) {
         const config = getConfig()
         // Backpressure handling (429 Too Many Requests or 503 Service Unavailable)
         if (config.backpressure && (res.status === 429 || res.status === 503)) {
-            const retryAfter = parseInt(res.headers.get('Retry-After'), 10) || 30
+            const retryAfter = parseRetryAfter(res.headers.get('Retry-After'))
             setBackpressure(retryAfter)
             logDebug(`Server 429/503 received. Backing off prefetch for ${retryAfter}s`)
         }
