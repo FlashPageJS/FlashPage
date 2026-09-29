@@ -830,9 +830,15 @@ function recordTransition(fromPath, toPath) {
         const entry = matrix[fromPath] || {}
         delete matrix[fromPath] // re-insert so recently used paths survive
         entry[toPath] = (entry[toPath] || 0) + 1
-        matrix[fromPath] = Object.fromEntries(
-            Object.entries(entry).sort((a, b) => b[1] - a[1]).slice(0, 5)
-        )
+
+        const dests = Object.keys(entry)
+        if (dests.length > 5) {
+            const weakest = dests
+                .filter(d => d !== toPath)
+                .sort((a, b) => entry[a] - entry[b])[0]
+            delete entry[weakest]
+        }
+        matrix[fromPath] = entry
 
         // Cap matrix to 50 source paths (a few KB at most)
         if (Object.keys(matrix).length > 50) {

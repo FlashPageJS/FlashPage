@@ -129,13 +129,22 @@ globalThis.localStorage = {
     setItem: (k, v) => { mockStorage[k] = v }
 }
 
-// 1. Destination pruning to top 5
-for (let d = 1; d <= 8; d++) {
-    recordTransition('/popular-source', `/dest-${d}`)
+// 1. Destination pruning: weakest existing destination evicted, new destination survives
+for (let d = 1; d <= 5; d++) {
+    for (let c = 0; c < d; c++) {
+        recordTransition('/popular-source', `/dest-${d}`)
+    }
+}
+// Visit /dest-6 10 times
+for (let i = 0; i < 10; i++) {
+    recordTransition('/popular-source', '/dest-6')
 }
 let storedMatrix = JSON.parse(mockStorage['flash_markov'])
 const popularDests = Object.keys(storedMatrix['/popular-source'])
 assert.equal(popularDests.length, 5, 'Should cap destinations to top 5')
+assert.ok(popularDests.includes('/dest-6'), 'New destination should survive and be retained')
+assert.equal(storedMatrix['/popular-source']['/dest-6'], 10, 'New destination should accumulate counts')
+assert.ok(!popularDests.includes('/dest-1'), 'Weakest existing destination (/dest-1 with count 1) should be evicted')
 
 // 2. 50 source paths cap and LRU recency survival
 for (let i = 0; i < 55; i++) {
