@@ -82,7 +82,7 @@ export function updateHUD() {
 
     _hudElement.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:4px">
-      <span style="font-weight:bold;color:#38bdf8">⚡ Flash Page v1.0.1</span>
+      <span style="font-weight:bold;color:#38bdf8">⚡ Flash Page v1.0.2</span>
       <span id="flash-hud-close" style="cursor:pointer;color:#94a3b8;font-size:13px;padding:2px 4px">✕</span>
     </div>
     <div>Engine: <span style="color:#f1f5f9">${engine}</span></div>

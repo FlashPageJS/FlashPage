@@ -47,8 +47,8 @@ async function bundleModule(entryFile, outputFile, isLite = false) {
     await resolveImports(entryFile)
 
     const banner = isLite
-        ? '/*! Flash Page Lite v1.0.1 | GPL-3.0-or-later */\n\n'
-        : '/*! Flash Page v1.0.1 | GPL-3.0-or-later */\n\n'
+        ? '/*! Flash Page Lite v1.0.2 | GPL-3.0-or-later */\n\n'
+        : '/*! Flash Page v1.0.2 | GPL-3.0-or-later */\n\n'
 
     // Combine and deduplicate exports
     let combined = moduleCodes.join('\n\n')
