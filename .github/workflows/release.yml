@@ -4,13 +4,15 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release:
-    name: Build, Test & Create GitHub Release
+    name: Build, Test, GitHub Release & npm Publish with Provenance
     runs-on: ubuntu-latest
 
     steps:
@@ -21,6 +23,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Verify JavaScript Syntax
         run: npm run check
@@ -46,3 +49,8 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to npm with Provenance
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
