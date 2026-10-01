@@ -1,7 +1,10 @@
+import fs from 'node:fs'
 import assert from 'node:assert/strict'
 import { isPreloadable, init, preload, destroy, status, getMetrics } from '../flashpage.js'
 
-console.log('🧪 Starting Flash Page v1.0.1 Exhaustive Test Suite...')
+const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+
+console.log(`🧪 Starting Flash Page v${pkg.version} Exhaustive Test Suite...`)
 
 // Setup simulated browser environment
 globalThis.location = new URL('https://mywebsite.com/blog/article-1')

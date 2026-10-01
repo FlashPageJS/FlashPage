@@ -1,6 +1,28 @@
 Flash Page Changelog
 ====================
 
+Version 1.0.3 (October 1, 2026)
+-----------------------------------
+
+Added:
+- Package Whitelist: Explicitly included Changelog.txt in package.json files array for npm tarball inclusion.
+- Release Automation: Added automated release workflow (scripts/release.js and npm run release) to streamline version bumping, bundle rebuilding, testing, and git tagging.
+
+Changed:
+- Dynamic Versioning: Modernized test suites (test/unitTests.js and test/comprehensiveTests.js) and build script (scripts/build.js) to resolve package version dynamically from package.json.
+- Workbench Evergreen: Updated test/live-test.html to use an evergreen workbench header, avoiding stale manual version strings.
+- Distribution Bundles: Rebuilt all 4 universal bundles with v1.0.3 headers and updated TypeScript definitions.
+- Documentation: Synchronized README.md version headers, WordPress enqueue snippet, and feature comparison tables to v1.0.3.
+
+Version 1.0.2 (September 30, 2026)
+-----------------------------------
+
+Changed:
+- Release Automation: Enabled npm provenance publishing with OIDC cryptographic attestation via Sigstore and GitHub Actions.
+- CI/CD Runtime: Upgraded release workflow to Node 22 LTS to eliminate runner deprecation notices.
+- Distribution Bundles: Rebuilt all 4 universal bundles with v1.0.2 headers and updated TypeScript definitions.
+- Documentation: Synchronized README.md and test suites to v1.0.2.
+
 Version 1.0.1 (September 29, 2026)
 -----------------------------------
 

@@ -1,4 +1,4 @@
-# Flash Page (v1.0.1)
+# Flash Page (v1.0.3)
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
 [![Tests](https://img.shields.io/badge/Tests-110%2B%20Passing-brightgreen.svg)](#development-building--testing)
@@ -45,7 +45,7 @@
 
 ## How It Works
 
-Before a visitor clicks a link, they hover their mouse over it, tap it on a touchscreen, or move the cursor directly toward it. This creates a natural **100–300 ms** gap between user intent and the click event.
+Before a visitor clicks a link, they hover their mouse over it, tap it on a touchscreen, or move the cursor directly toward it. This creates a natural **100-300 ms** gap between user intent and the click event.
 
 **Flash Page** uses this brief window to preload or prerender the destination page. By the time the user clicks, the target document is already warm in the browser cache, rendering almost instantaneously and noticeably improving Core Web Vitals (LCP, INP).
 
@@ -57,10 +57,10 @@ Flash Page is designed to speed up page transitions without eating up main threa
 
 | Metric | Target | Real-World Impact with Flash Page | How It Helps |
 | :--- | :---: | :---: | :--- |
-| **LCP** (Largest Contentful Paint) | `< 2.5s` | 🚀 **50%–90% Faster** | Destination HTML and critical CSS/fonts are pre-cached before click. Subsequent TTFB drops to **~0–15ms**. |
+| **LCP** (Largest Contentful Paint) | `< 2.5s` | 🚀 **50%-90% Faster** | Destination HTML and critical CSS/fonts are pre-cached before click. Subsequent TTFB drops to **~0-15ms**. |
 | **INP** (Interaction to Next Paint) | `< 200ms` | 🟢 **Zero Degradation** | Uses `passive: true` listeners to keep scrolling smooth. Speculation Rules execute out-of-process in the browser network thread. |
 | **CLS** (Cumulative Layout Shift) | `< 0.1` | 🛡️ **0.000 (Unaffected)** | Operates entirely in the background via head tags, causing zero layout shifting. |
-| **TTFB** (Time to First Byte) | `< 800ms` | ⚡ **Instant (~0–15ms)** | Target pages load directly from memory or HTTP cache on click. |
+| **TTFB** (Time to First Byte) | `< 800ms` | ⚡ **Instant (~0-15ms)** | Target pages load directly from memory or HTTP cache on click. |
 
 ### Built-in Bandwidth & Battery Safeguards:
 1. **Low Network Priority**: All speculative requests use `fetchPriority: 'low'` so current page images, fonts, and API requests always take priority.
@@ -208,7 +208,7 @@ Upgrading existing websites from `instant.page` to **Flash Page** is **100% back
 
 ### Feature Comparison: `instant.page` vs. `Flash Page`
 
-| Feature / Capability | `instant.page` (v5.2.0) | `Flash Page` (v1.0.1) | Architectural Advantage |
+| Feature / Capability | `instant.page` (v5.2.0) | `Flash Page` (v1.0.3) | Architectural Advantage |
 | :--- | :---: | :---: | :--- |
 | **Native Speculation Rules (Document Rules)** | ❌ | ✅ | Zero-JS browser-level speculation in Chrome/Edge 121+ |
 | **Prerender Engine (Full Background Rendering)** | ❌ | ✅ | Instant page display with pre-executed scripts & styles |
@@ -255,7 +255,7 @@ Add the script tag right before your closing `</body>` tag:
 Add this single line to your active theme’s `functions.php`:
 ```php
 function add_flash_page() {
-    wp_enqueue_script('flash-page', get_template_directory_uri() . '/flashpage.min.js', array(), '1.0.1', true);
+    wp_enqueue_script('flash-page', get_template_directory_uri() . '/flashpage.min.js', array(), '1.0.3', true);
 }
 add_action('wp_enqueue_scripts', 'add_flash_page');
 ```
@@ -385,7 +385,7 @@ Controls **how and when** links are preloaded:
 - **`'mousedown-only'`**: Disables desktop mouse hover preloading entirely. Preloads strictly on `mousedown` and touch tap.
 - **`'viewport'`**: Preloads visible links as they scroll into view (only on mobile/small viewports where total screen area $< 450,000\text{ px}^2$).
 - **`'viewport-all'`**: Preloads visible links across all screens regardless of resolution.
-- **`'predictive'`**: Evaluates mouse velocity and vector trajectory to preload target links **150–300ms before cursor hover occurs**.
+- **`'predictive'`**: Evaluates mouse velocity and vector trajectory to preload target links **150-300ms before cursor hover occurs**.
 - **`'intent-cone'`**: Extends velocity prediction into a 3-point directional intent cone, detecting destination links based on mouse heading angle and momentum.
 
 #### 2. `specrules`
@@ -559,7 +559,7 @@ Flash Page automatically respects modern declarative HTML frameworks:
 | Browser Engine | Strategy Used | Network Impact |
 | :--- | :--- | :--- |
 | **Chromium 121+** (Chrome, Edge, Brave, Opera) | **Native Speculation Rules (Document Rules)** in browser C++ | Zero JS overhead, native browser speculation pipeline |
-| **Chromium 100–120** | Speculation Rules (List-based) or Restrictive Link Prefetch | Native memory caching |
+| **Chromium 100-120** | Speculation Rules (List-based) or Restrictive Link Prefetch | Native memory caching |
 | **Firefox 115+** | Native `<link rel="prefetch">` + Pointer Events | Standard HTTP disk caching |
 | **Safari / WebKit (macOS / iOS)** | Low-priority `fetch()` Cache Warming Fallback | WebKit memory & disk cache warming |
 
@@ -625,7 +625,7 @@ Copyright (C) 2026 Flash Page Contributors.
 
 ### Upstream Attribution
 Flash Page is an enterprise-grade derivative work originally based on and inspired by [`instant.page`](https://instant.page/) created by Alexandre Dieulot:  
-- **Original Work**: `instant.page` Copyright (C) 2019–2025 Alexandre Dieulot (Licensed under the [MIT License](./LICENSE)).
+- **Original Work**: `instant.page` Copyright (C) 2019-2025 Alexandre Dieulot (Licensed under the [MIT License](./LICENSE)).
 - Alexandre Dieulot's original MIT copyright notice and permission terms are preserved verbatim in the [`LICENSE`](./LICENSE) file in full compliance with open-source licensing laws.
 
 ### Non-Affiliation Disclaimer

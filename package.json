@@ -1,6 +1,6 @@
 {
   "name": "flash-page",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Smart prefetching and Speculation Rules manager with cursor trajectory prediction and server backpressure protection.",
   "type": "module",
   "main": "./flashpage.js",
@@ -30,7 +30,8 @@
     "flashpage.lite.d.ts",
     "src",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "Changelog.txt"
   ],
   "engines": {
     "node": ">=18.0.0"
@@ -52,7 +53,8 @@
     "test:bundles": "node ./test/bundleTests.js",
     "test:server": "node ./test/index.js 8085",
     "test:live": "node ./test/index.js 8085",
-    "check": "node --check flashpage.js flashpage.min.js flashpage.lite.js flashpage.lite.min.js && find src test scripts -name '*.js' -exec node --check {} +"
+    "check": "node --check flashpage.js flashpage.min.js flashpage.lite.js flashpage.lite.min.js && find src test scripts -name '*.js' -exec node --check {} +",
+    "release": "node ./scripts/release.js"
   },
   "keywords": [
     "prefetch",

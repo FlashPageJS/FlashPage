@@ -6,6 +6,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
 const SRC = path.resolve(ROOT, 'src')
 
+const pkg = JSON.parse(await fs.readFile(path.resolve(ROOT, 'package.json'), 'utf8'))
+const VERSION = pkg.version
+
 async function bundleModule(entryFile, outputFile, isLite = false) {
     const visited = new Set()
     const moduleCodes = []
@@ -41,14 +44,17 @@ async function bundleModule(entryFile, outputFile, isLite = false) {
                 .replace(/^export\s*\{[^}]*\}\s*;?/gm, '')
         }
 
+        // Sync version strings in source code
+        cleanCode = cleanCode.replace(/Flash Page (Lite )?v\d+\.\d+\.\d+/g, (m, lite) => `Flash Page ${lite || ''}v${VERSION}`)
+
         moduleCodes.push(cleanCode.trim())
     }
 
     await resolveImports(entryFile)
 
     const banner = isLite
-        ? '/*! Flash Page Lite v1.0.2 | GPL-3.0-or-later */\n\n'
-        : '/*! Flash Page v1.0.2 | GPL-3.0-or-later */\n\n'
+        ? `/*! Flash Page Lite v${VERSION} | GPL-3.0-or-later */\n\n`
+        : `/*! Flash Page v${VERSION} | GPL-3.0-or-later */\n\n`
 
     // Combine and deduplicate exports
     let combined = moduleCodes.join('\n\n')
@@ -330,10 +336,26 @@ function isRegexStart(prevChar) {
     return '([={,:;!&|?~^+-*%<>'.includes(prevChar)
 }
 
+async function updateDtsHeaders() {
+    const dtsFiles = [
+        { file: path.resolve(ROOT, 'flashpage.d.ts'), header: `/*! Flash Page v${VERSION} - TypeScript Definitions | GPL-3.0-or-later */` },
+        { file: path.resolve(ROOT, 'flashpage.lite.d.ts'), header: `/*! Flash Page Lite v${VERSION} - TypeScript Definitions | GPL-3.0-or-later */` }
+    ]
+    for (const { file, header } of dtsFiles) {
+        try {
+            let content = await fs.readFile(file, 'utf8')
+            content = content.replace(/^\/\*![\s\S]*?\*\//, header)
+            await fs.writeFile(file, content, 'utf8')
+            console.log(`📝 Updated TypeScript Definitions: ${path.relative(ROOT, file)}`)
+        } catch {}
+    }
+}
+
 async function build() {
-    console.log('🚀 Building Flash Page Enterprise Bundles...')
+    console.log(`🚀 Building Flash Page Enterprise Bundles (v${VERSION})...`)
     await bundleModule(path.resolve(SRC, 'index.js'), path.resolve(ROOT, 'flashpage.js'), false)
     await bundleModule(path.resolve(SRC, 'index-lite.js'), path.resolve(ROOT, 'flashpage.lite.js'), true)
+    await updateDtsHeaders()
     console.log('✅ All Bundles Built Successfully!')
 }
 
