@@ -45,7 +45,10 @@ function resetConfig() {
 }
 
 function setBackpressure(retryAfterSeconds = 30) {
-    _backpressureUntil = Date.now() + retryAfterSeconds * 1000
+    const sec = typeof retryAfterSeconds === 'number' && !isNaN(retryAfterSeconds)
+        ? Math.min(retryAfterSeconds, 300)
+        : 30
+    _backpressureUntil = sec > 0 ? Date.now() + sec * 1000 : 0
 }
 
 function getBackpressureUntil() {
@@ -269,14 +272,20 @@ function isPreloadable(anchor) {
     }
 
     // Action path check (sensitive endpoints)
-    const path = urlObj.pathname.toLowerCase()
+    let path = urlObj.pathname.toLowerCase()
+    try {
+        path = decodeURIComponent(urlObj.pathname).toLowerCase()
+    } catch {}
     if (/(^|\/)(logout|signout|delete|destroy|remove)(\/|$|\.)/i.test(path)) {
         return false
     }
 
     // Action query check (sensitive query parameters like ?action=logout, ?do=delete, ?act=signout)
     if (urlObj.search) {
-        const query = urlObj.search.toLowerCase()
+        let query = urlObj.search.toLowerCase()
+        try {
+            query = decodeURIComponent(urlObj.search).toLowerCase()
+        } catch {}
         if (/[?&](action|act|do|op)=(logout|signout|delete|destroy|remove)(&|$)/i.test(query)) {
             return false
         }
@@ -351,8 +360,9 @@ function setupDocumentSpeculationRules() {
         script.type = 'speculationrules'
         script.setAttribute('data-flash-rules', '')
         if (config.nonce) {
-            script.nonce = config.nonce
-            script.setAttribute('nonce', config.nonce)
+            const sanitizedNonce = String(config.nonce).replace(/["'<>]/g, '')
+            script.nonce = sanitizedNonce
+            script.setAttribute('nonce', sanitizedNonce)
         }
 
         const action = config.specrules === 'prerender' ? 'prerender' : 'prefetch'
@@ -398,7 +408,7 @@ function setupDocumentSpeculationRules() {
             ]
         }
 
-        script.textContent = JSON.stringify(documentRule)
+        script.textContent = JSON.stringify(documentRule).replace(/<\/script/gi, '<\\/script')
         const target = document.head || document.documentElement
         if (target) target.appendChild(script)
         return true
@@ -414,15 +424,16 @@ function preloadUsingSpeculationList(url, type) {
     script.type = 'speculationrules'
     script.setAttribute('data-flash-rules', '')
     if (config.nonce) {
-        script.nonce = config.nonce
-        script.setAttribute('nonce', config.nonce)
+        const sanitizedNonce = String(config.nonce).replace(/["'<>]/g, '')
+        script.nonce = sanitizedNonce
+        script.setAttribute('nonce', sanitizedNonce)
     }
     script.textContent = JSON.stringify({
         [type]: [{
             source: 'list',
             urls: [url]
         }]
-    })
+    }).replace(/<\/script/gi, '<\\/script')
     const target = document.head || document.documentElement
     if (target) target.appendChild(script)
     return new Promise(resolve => setTimeout(resolve, 400))

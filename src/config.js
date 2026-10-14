@@ -45,7 +45,10 @@ export function resetConfig() {
 }
 
 export function setBackpressure(retryAfterSeconds = 30) {
-    _backpressureUntil = Date.now() + retryAfterSeconds * 1000
+    const sec = typeof retryAfterSeconds === 'number' && !isNaN(retryAfterSeconds)
+        ? Math.min(retryAfterSeconds, 300)
+        : 30
+    _backpressureUntil = sec > 0 ? Date.now() + sec * 1000 : 0
 }
 
 export function getBackpressureUntil() {

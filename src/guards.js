@@ -96,14 +96,20 @@ export function isPreloadable(anchor) {
     }
 
     // Action path check (sensitive endpoints)
-    const path = urlObj.pathname.toLowerCase()
+    let path = urlObj.pathname.toLowerCase()
+    try {
+        path = decodeURIComponent(urlObj.pathname).toLowerCase()
+    } catch {}
     if (/(^|\/)(logout|signout|delete|destroy|remove)(\/|$|\.)/i.test(path)) {
         return false
     }
 
     // Action query check (sensitive query parameters like ?action=logout, ?do=delete, ?act=signout)
     if (urlObj.search) {
-        const query = urlObj.search.toLowerCase()
+        let query = urlObj.search.toLowerCase()
+        try {
+            query = decodeURIComponent(urlObj.search).toLowerCase()
+        } catch {}
         if (/[?&](action|act|do|op)=(logout|signout|delete|destroy|remove)(&|$)/i.test(query)) {
             return false
         }

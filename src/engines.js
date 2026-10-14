@@ -59,8 +59,9 @@ export function setupDocumentSpeculationRules() {
         script.type = 'speculationrules'
         script.setAttribute('data-flash-rules', '')
         if (config.nonce) {
-            script.nonce = config.nonce
-            script.setAttribute('nonce', config.nonce)
+            const sanitizedNonce = String(config.nonce).replace(/["'<>]/g, '')
+            script.nonce = sanitizedNonce
+            script.setAttribute('nonce', sanitizedNonce)
         }
 
         const action = config.specrules === 'prerender' ? 'prerender' : 'prefetch'
@@ -106,7 +107,7 @@ export function setupDocumentSpeculationRules() {
             ]
         }
 
-        script.textContent = JSON.stringify(documentRule)
+        script.textContent = JSON.stringify(documentRule).replace(/<\/script/gi, '<\\/script')
         const target = document.head || document.documentElement
         if (target) target.appendChild(script)
         return true
@@ -122,15 +123,16 @@ export function preloadUsingSpeculationList(url, type) {
     script.type = 'speculationrules'
     script.setAttribute('data-flash-rules', '')
     if (config.nonce) {
-        script.nonce = config.nonce
-        script.setAttribute('nonce', config.nonce)
+        const sanitizedNonce = String(config.nonce).replace(/["'<>]/g, '')
+        script.nonce = sanitizedNonce
+        script.setAttribute('nonce', sanitizedNonce)
     }
     script.textContent = JSON.stringify({
         [type]: [{
             source: 'list',
             urls: [url]
         }]
-    })
+    }).replace(/<\/script/gi, '<\\/script')
     const target = document.head || document.documentElement
     if (target) target.appendChild(script)
     return new Promise(resolve => setTimeout(resolve, 400))
