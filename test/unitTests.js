@@ -1,8 +1,11 @@
 import fs from 'node:fs'
 import assert from 'node:assert/strict'
-import { isPreloadable, status, getMetrics } from '../flashpage.js'
+import { isPreloadable, status, getMetrics, setConfig, resetConfig } from '../flashpage.js'
 import { parseRetryAfter } from '../src/engines.js'
 import { recordTransition } from '../src/markov.js'
+import { parseDatasetConfig } from '../src/config.js'
+import { findAnchorFromEvent } from '../src/input.js'
+import { collectAnchors } from '../src/viewport.js'
 
 const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 
@@ -161,5 +164,64 @@ storedMatrix = JSON.parse(mockStorage['flash_markov'])
 assert.ok(Object.keys(storedMatrix).length <= 50, 'Markov matrix should never exceed 50 paths')
 assert.ok(storedMatrix['/popular-source'], 'Recently refreshed source path should survive eviction (LRU)')
 assert.ok(!storedMatrix['/source-0'], 'Oldest untouched path should be evicted')
+
+// Test: CSP Nonce Dataset Parsing
+const datasetWithNonce = { flashNonce: 'abc-nonce-xyz-123' }
+const parsedNonceConfig = parseDatasetConfig(datasetWithNonce)
+assert.equal(parsedNonceConfig.nonce, 'abc-nonce-xyz-123', 'Should parse flashNonce correctly')
+
+// Test: Destructive Query Actions
+setConfig({ allowQueryString: true })
+const deleteQueryAnchor = {
+    ...validAnchor,
+    href: 'https://example.com/items?action=delete&id=42',
+    search: '?action=delete&id=42'
+}
+assert.equal(isPreloadable(deleteQueryAnchor), false, 'Should reject ?action=delete even when query string enabled')
+
+const logoutQueryAnchor = {
+    ...validAnchor,
+    href: 'https://example.com/auth?do=logout',
+    search: '?do=logout'
+}
+assert.equal(isPreloadable(logoutQueryAnchor), false, 'Should reject ?do=logout even when query string enabled')
+
+const safeQueryAnchor = {
+    ...validAnchor,
+    href: 'https://example.com/items?action=view&id=42',
+    search: '?action=view&id=42'
+}
+assert.equal(isPreloadable(safeQueryAnchor), true, 'Should allow non-destructive query actions when query string enabled')
+resetConfig()
+
+// Test: Shadow DOM Composed Path Event Retargeting
+const innerSpan = { tagName: 'SPAN', nodeType: 1 }
+const shadowAnchor = { tagName: 'A', nodeType: 1, href: 'https://example.com/article-shadow', hasAttribute: () => false, relList: { contains: () => false }, dataset: {} }
+const customCard = { tagName: 'CUSTOM-CARD', nodeType: 1 }
+
+const simulatedShadowEvent = {
+    target: customCard,
+    composedPath: () => [innerSpan, shadowAnchor, customCard]
+}
+assert.equal(findAnchorFromEvent(simulatedShadowEvent), shadowAnchor, 'Should resolve <a> across shadow DOM boundary using composedPath()')
+
+// Test: collectAnchors with Open Shadow Roots
+const mockAnchorLight = { tagName: 'A', href: '/light-link' }
+const mockAnchorShadow = { tagName: 'A', href: '/shadow-link' }
+const mockRoot = {
+    querySelectorAll: (selector) => {
+        if (selector === 'a') return [mockAnchorLight]
+        if (selector === '*') return [{
+            shadowRoot: {
+                querySelectorAll: (s) => (s === 'a' ? [mockAnchorShadow] : [])
+            }
+        }]
+        return []
+    }
+}
+const collected = collectAnchors(mockRoot)
+assert.equal(collected.length, 2, 'Should collect both light DOM and open shadow DOM anchors')
+assert.ok(collected.includes(mockAnchorLight), 'Should include light DOM anchor')
+assert.ok(collected.includes(mockAnchorShadow), 'Should include shadow DOM anchor')
 
 console.log(`✅ All Flash Page v${pkg.version} Unit Tests Passed!`)

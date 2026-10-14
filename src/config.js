@@ -21,6 +21,7 @@ export const DEFAULT_CONFIG = {
     filter: null,
     onPreload: null,
     onMetric: null,
+    nonce: null,
 }
 
 let _config = { ...DEFAULT_CONFIG }
@@ -123,6 +124,16 @@ export function parseDatasetConfig(targetDataset) {
 
     // 12. Server Backpressure
     if ('flashNoBackpressure' in d) parsed.backpressure = false
+
+    // 13. CSP Nonce
+    if ('flashNonce' in d) parsed.nonce = d.flashNonce
+    if (!parsed.nonce && typeof document !== 'undefined' && document.currentScript) {
+        if (document.currentScript.nonce) {
+            parsed.nonce = document.currentScript.nonce
+        } else if (document.currentScript.dataset && document.currentScript.dataset.flashNonce) {
+            parsed.nonce = document.currentScript.dataset.flashNonce
+        }
+    }
 
     return parsed
 }

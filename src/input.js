@@ -10,9 +10,14 @@ let _lastPointerY = 0
 let _lastPointerTime = 0
 let _isRapidScrolling = false
 let _scrollTimeout = null
+let _lastTouchTimestamp = 0
 
 export function isRapidScrolling() {
     return _isRapidScrolling
+}
+
+export function getLastTouchTimestamp() {
+    return _lastTouchTimestamp
 }
 
 export function resetInputState() {
@@ -26,6 +31,25 @@ export function resetInputState() {
     }
     _currentHoverAnchor = null
     _isRapidScrolling = false
+    _lastTouchTimestamp = 0
+}
+
+export function findAnchorFromEvent(event) {
+    if (!event) return null
+    if (typeof event.composedPath === 'function') {
+        const path = event.composedPath()
+        for (let i = 0; i < path.length; i++) {
+            const el = path[i]
+            if (el && el.nodeType === 1) {
+                if (el.tagName && el.tagName.toLowerCase() === 'a') return el
+                if (typeof el.closest === 'function') {
+                    const a = el.closest('a')
+                    if (a) return a
+                }
+            }
+        }
+    }
+    return event.target && event.target.closest ? event.target.closest('a') : null
 }
 
 export function setupEventListeners(signal, onPreloadRequest, onToggleHUD) {
@@ -55,7 +79,10 @@ export function setupEventListeners(signal, onPreloadRequest, onToggleHUD) {
 
     // 2. Pointer Down (Mobile touch tap & Desktop click start)
     document.addEventListener('pointerdown', (event) => {
-        const anchor = event.target && event.target.closest ? event.target.closest('a') : null
+        if (event.pointerType === 'touch') {
+            _lastTouchTimestamp = Date.now()
+        }
+        const anchor = findAnchorFromEvent(event)
         if (isPreloadable(anchor)) {
             const href = getAnchorHref(anchor)
             if (href) onPreloadRequest(href, 'high')
@@ -66,8 +93,10 @@ export function setupEventListeners(signal, onPreloadRequest, onToggleHUD) {
     if (!isMousedownOnly) {
         document.addEventListener('pointerover', (event) => {
             if (event.pointerType !== 'mouse') return
+            // Ignore synthetic mouse events fired immediately after touch taps on mobile
+            if (_lastTouchTimestamp && (Date.now() - _lastTouchTimestamp) < 500) return
 
-            const anchor = event.target && event.target.closest ? event.target.closest('a') : null
+            const anchor = findAnchorFromEvent(event)
             if (!anchor || anchor === _currentHoverAnchor || !isPreloadable(anchor)) return
 
             _currentHoverAnchor = anchor

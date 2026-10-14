@@ -1,4 +1,4 @@
-# Flash Page (v1.0.3)
+# Flash Page (v1.0.4)
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
 [![Tests](https://img.shields.io/badge/Tests-110%2B%20Passing-brightgreen.svg)](#development-building--testing)
@@ -208,7 +208,7 @@ Upgrading existing websites from `instant.page` to **Flash Page** is **100% back
 
 ### Feature Comparison: `instant.page` vs. `Flash Page`
 
-| Feature / Capability | `instant.page` (v5.2.0) | `Flash Page` (v1.0.3) | Architectural Advantage |
+| Feature / Capability | `instant.page` (v5.2.0) | `Flash Page` (v1.0.4) | Architectural Advantage |
 | :--- | :---: | :---: | :--- |
 | **Native Speculation Rules (Document Rules)** | ❌ | ✅ | Zero-JS browser-level speculation in Chrome/Edge 121+ |
 | **Prerender Engine (Full Background Rendering)** | ❌ | ✅ | Instant page display with pre-executed scripts & styles |
@@ -225,7 +225,9 @@ Upgrading existing websites from `instant.page` to **Flash Page** is **100% back
 | **Battery Level Guard ($<20\%$ & Discharging)** | ❌ | ✅ | Battery API integration prevents battery drain on mobile |
 | **Device Memory Guard ($\le 1\text{ GB}$ RAM)** | ❌ | ✅ | Skips preloading on low-spec hardware to prevent browser lag |
 | **Data Saver (`Save-Data`) & 2G Network Guard** | ✅ | ✅ | Automatically respects user privacy and metered bandwidth |
-| **Destructive Action URL Protection** | ❌ | ✅ | Auto-ignores `/logout`, `/delete`, `/destroy`, `/remove` |
+| **Destructive Action URL & Query Protection** | ❌ | ✅ | Auto-ignores `/logout`, `/delete`, and query parameters like `?action=delete` |
+| **CSP Nonce Compliance (`data-flash-nonce`)** | ❌ | ✅ | Attaches strict Content Security Policy nonces to speculation scripts |
+| **Open Shadow DOM Link Traversal** | ❌ | ✅ | Traverses Web Component boundaries using `composedPath()` |
 | **Modern Action Attribute Filters** | ❌ | ✅ | Automatically filters `[data-method]`, `[hx-*]`, `[data-turbo-method]` |
 | **Target Exclusion (`target="_blank"`)** | ❌ | ✅ | Skips new-tab links in both JS and native Speculation Rules |
 | **Dynamic SPAs (`MutationObserver`)** | ❌ | ✅ | Automatically captures newly mounted links in React, Vue, HTMX |
@@ -255,7 +257,7 @@ Add the script tag right before your closing `</body>` tag:
 Add this single line to your active theme’s `functions.php`:
 ```php
 function add_flash_page() {
-    wp_enqueue_script('flash-page', get_template_directory_uri() . '/flashpage.min.js', array(), '1.0.3', true);
+    wp_enqueue_script('flash-page', get_template_directory_uri() . '/flashpage.min.js', array(), '1.0.4', true);
 }
 add_action('wp_enqueue_scripts', 'add_flash_page');
 ```
@@ -349,7 +351,7 @@ To prevent aggressive prefetching from stressing backend servers or triggering I
 
 You can configure Flash Page either via **JavaScript `init(options)`** or declaratively via **HTML `data-*` attributes** on `<body>`.
 
-### Master Parameters Matrix (All 20 Options)
+### Master Parameters Matrix (All 21 Options)
 
 | Parameter (`FlashPageConfig`) | Type / Allowed Values | Default | HTML Dataset Attribute | Description |
 | :--- | :--- | :---: | :--- | :--- |
@@ -370,6 +372,7 @@ You can configure Flash Page either via **JavaScript `init(options)`** or declar
 | `backpressure` | `boolean` | `true` | `data-flash-no-backpressure` *(negated)* | Pauses prefetching site-wide on HTTP 429/503 responses based on `Retry-After`. |
 | `debug` | `boolean` | `false` | `data-flash-debug` | Enables verbose diagnostic logging in browser developer console. |
 | `hud` | `boolean` | `false` | `data-flash-hud` | Forces the DevTools HUD overlay to be open on startup (`Ctrl+Shift+F`). |
+| `nonce` | `string` | `null` | `data-flash-nonce` | Content Security Policy (CSP) nonce attached to generated Speculation Rules tags. |
 | `filter` | `(url: URL, anchor: HTMLAnchorElement) => boolean` | `null` | *(JS only)* | Custom predicate function to dynamically allow or reject specific links. |
 | `onPreload` | `(url: string, engine: string) => void` | `null` | *(JS only)* | Lifecycle callback fired whenever a URL prefetch/prerender is dispatched. |
 | `onMetric` | `(metric: FlashPageMetric) => void` | `null` | *(JS only)* | Performance callback receiving conversion timing and transfer metrics. |
@@ -413,6 +416,13 @@ init({
     }
 })
 ```
+
+#### 5. `nonce` (CSP Compliance)
+For websites enforcing a strict Content Security Policy (CSP) with `script-src 'nonce-...'`, you can supply your cryptographic nonce:
+- **Via JavaScript**: `init({ nonce: 'r@nd0mNonce' })`
+- **Via HTML**: `<body data-flash-nonce="r@nd0mNonce">` or directly on the script tag: `<script src="/flashpage.min.js" nonce="r@nd0mNonce" type="module"></script>`
+
+Flash Page automatically applies this nonce to all generated `<script type="speculationrules">` elements, guaranteeing full CSP compliance without inline execution violations.
 
 ---
 

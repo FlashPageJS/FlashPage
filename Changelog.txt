@@ -1,6 +1,19 @@
 Flash Page Changelog
 ====================
 
+Version 1.0.4 (October 14, 2026)
+-----------------------------------
+
+Added:
+- CSP Nonce Support: Added dynamic Content Security Policy (CSP) nonce injection for Speculation Rules via init({ nonce }) and data-flash-nonce attribute, ensuring strict CSP compliance without inline execution violations.
+- Open Shadow DOM Traversal: Added event path traversal via event.composedPath() and collectAnchors helper to seamlessly detect and preload links encapsulated inside Web Components and open shadow roots.
+- Parameter Matrix Expansion: Added parameter 21 (nonce) to the Master Parameters Matrix with full test suite coverage.
+
+Changed:
+- Touch Tap Normalization: Added tap timestamp tracking to suppress synthetic and duplicate mouseover events within 500ms of a touch tap on mobile devices (iOS Safari / Android Chrome).
+- Enhanced Destructive Action Filtering: Extended security guards to automatically filter destructive query parameters (?action=delete, ?action=logout, ?do=delete, ?act=signout) in both JavaScript guards and Speculation Rules selector exclusion rules.
+- Documentation: Updated README.md comparison table, WordPress enqueue snippet, and added Deep-Dive section for CSP nonce compliance.
+
 Version 1.0.3 (October 1, 2026)
 -----------------------------------
 

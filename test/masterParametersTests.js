@@ -20,7 +20,7 @@ import {
 import { logDebug } from '../src/config.js'
 import { initTelemetry } from '../src/telemetry.js'
 
-console.log('🧪 Starting Flash Page Master Parameters Matrix Test Suite (All 20 Parameters)...')
+console.log('🧪 Starting Flash Page Master Parameters Matrix Test Suite (All 21 Parameters)...')
 
 // Setup global mock browser environment
 globalThis.location = new URL('https://example.com/blog/article-1')
@@ -430,4 +430,11 @@ assert.equal(capturedMetric.transferSize, 1240, 'metric.transferSize should matc
 destroy()
 console.log('  ✓ Parameter 20 (onMetric) verified')
 
-console.log('\n🎉 ALL 20 MASTER PARAMETERS VERIFIED INDIVIDUALLY AND PASSED WITH 100% SUCCESS!')
+// Parameter 21: nonce
+// Content Security Policy (CSP) nonce verification
+init({ nonce: 'custom-csp-nonce-999' })
+assert.equal(status().config.nonce, 'custom-csp-nonce-999', 'nonce should be stored in config')
+destroy()
+console.log('  ✓ Parameter 21 (nonce) verified')
+
+console.log('\n🎉 ALL 21 MASTER PARAMETERS VERIFIED INDIVIDUALLY AND PASSED WITH 100% SUCCESS!')

@@ -18,6 +18,22 @@ export function resetViewportObservers() {
     }
 }
 
+export function collectAnchors(root) {
+    if (!root) return []
+    const results = []
+    if (root.querySelectorAll) {
+        root.querySelectorAll('a').forEach(a => results.push(a))
+        try {
+            root.querySelectorAll('*').forEach(el => {
+                if (el.shadowRoot && el.shadowRoot.querySelectorAll) {
+                    el.shadowRoot.querySelectorAll('a').forEach(a => results.push(a))
+                }
+            })
+        } catch {}
+    }
+    return results
+}
+
 export function setupViewportAndDynamicObserver(signal, onPreloadRequest) {
     const config = getConfig()
     const isViewport = config.intensity === 'viewport' || config.intensity === 'viewport-all'
@@ -46,8 +62,8 @@ export function setupViewportAndDynamicObserver(signal, onPreloadRequest) {
             })
         }, { rootMargin: '200px' })
 
-        // Observe initial links
-        document.querySelectorAll('a').forEach((anchor) => {
+        // Observe initial links (including open shadow roots)
+        collectAnchors(document).forEach((anchor) => {
             if (isPreloadable(anchor)) _intersectionObserver.observe(anchor)
         })
 
@@ -55,8 +71,8 @@ export function setupViewportAndDynamicObserver(signal, onPreloadRequest) {
         _mutationObserver = new MutationObserver((mutations) => {
             for (const m of mutations) {
                 for (const node of m.addedNodes) {
-                    if (node.nodeType !== Node.ELEMENT_NODE) continue
-                    const anchors = node.matches && node.matches('a') ? [node] : (node.querySelectorAll ? node.querySelectorAll('a') : [])
+                    if (node.nodeType !== (typeof Node !== 'undefined' ? Node.ELEMENT_NODE : 1)) continue
+                    const anchors = node.matches && node.matches('a') ? [node] : collectAnchors(node)
                     anchors.forEach((a) => {
                         if (isPreloadable(a) && _intersectionObserver) {
                             _intersectionObserver.observe(a)

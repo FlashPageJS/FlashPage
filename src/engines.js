@@ -58,6 +58,10 @@ export function setupDocumentSpeculationRules() {
         const script = document.createElement('script')
         script.type = 'speculationrules'
         script.setAttribute('data-flash-rules', '')
+        if (config.nonce) {
+            script.nonce = config.nonce
+            script.setAttribute('nonce', config.nonce)
+        }
 
         const action = config.specrules === 'prerender' ? 'prerender' : 'prefetch'
         const eagerness = config.intensity === 'mousedown' || config.intensity === 'mousedown-only'
@@ -88,6 +92,10 @@ export function setupDocumentSpeculationRules() {
                                         '[href*="/delete"]',
                                         '[href*="/destroy"]',
                                         '[href*="/remove"]',
+                                        '[href*="action=delete"]',
+                                        '[href*="action=logout"]',
+                                        '[href*="do=delete"]',
+                                        '[href*="do=logout"]',
                                     ].join(', ')
                                 }
                             }
@@ -109,9 +117,14 @@ export function setupDocumentSpeculationRules() {
 }
 
 export function preloadUsingSpeculationList(url, type) {
+    const config = getConfig()
     const script = document.createElement('script')
     script.type = 'speculationrules'
     script.setAttribute('data-flash-rules', '')
+    if (config.nonce) {
+        script.nonce = config.nonce
+        script.setAttribute('nonce', config.nonce)
+    }
     script.textContent = JSON.stringify({
         [type]: [{
             source: 'list',

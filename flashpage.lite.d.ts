@@ -1,4 +1,4 @@
-/*! Flash Page Lite v1.0.3 - TypeScript Definitions | GPL-3.0-or-later */
+/*! Flash Page Lite v1.0.4 - TypeScript Definitions | GPL-3.0-or-later */
 
 export interface FlashPageConfig {
     /**
@@ -44,6 +44,9 @@ export interface FlashPageConfig {
 
     /** Enable verbose console debugging (default: false) */
     debug?: boolean;
+
+    /** Content Security Policy (CSP) nonce attached to generated Speculation Rules script tags */
+    nonce?: string;
 
     /** Custom filter predicate to allow or deny preloading a specific anchor */
     filter?: (url: URL, element: HTMLAnchorElement) => boolean;

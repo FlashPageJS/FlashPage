@@ -1,4 +1,4 @@
-/*! Flash Page v1.0.3 | GPL-3.0-or-later */
+/*! Flash Page v1.0.4 | GPL-3.0-or-later */
 
 const DEFAULT_CONFIG = {
     intensity: 65,
@@ -21,6 +21,7 @@ const DEFAULT_CONFIG = {
     filter: null,
     onPreload: null,
     onMetric: null,
+    nonce: null,
 }
 
 let _config = { ...DEFAULT_CONFIG }
@@ -123,6 +124,16 @@ function parseDatasetConfig(targetDataset) {
 
     // 12. Server Backpressure
     if ('flashNoBackpressure' in d) parsed.backpressure = false
+
+    // 13. CSP Nonce
+    if ('flashNonce' in d) parsed.nonce = d.flashNonce
+    if (!parsed.nonce && typeof document !== 'undefined' && document.currentScript) {
+        if (document.currentScript.nonce) {
+            parsed.nonce = document.currentScript.nonce
+        } else if (document.currentScript.dataset && document.currentScript.dataset.flashNonce) {
+            parsed.nonce = document.currentScript.dataset.flashNonce
+        }
+    }
 
     return parsed
 }
@@ -263,6 +274,14 @@ function isPreloadable(anchor) {
         return false
     }
 
+    // Action query check (sensitive query parameters like ?action=logout, ?do=delete, ?act=signout)
+    if (urlObj.search) {
+        const query = urlObj.search.toLowerCase()
+        if (/[?&](action|act|do|op)=(logout|signout|delete|destroy|remove)(&|$)/i.test(query)) {
+            return false
+        }
+    }
+
     // Custom user filter callback
     if (typeof config.filter === 'function') {
         try {
@@ -331,6 +350,10 @@ function setupDocumentSpeculationRules() {
         const script = document.createElement('script')
         script.type = 'speculationrules'
         script.setAttribute('data-flash-rules', '')
+        if (config.nonce) {
+            script.nonce = config.nonce
+            script.setAttribute('nonce', config.nonce)
+        }
 
         const action = config.specrules === 'prerender' ? 'prerender' : 'prefetch'
         const eagerness = config.intensity === 'mousedown' || config.intensity === 'mousedown-only'
@@ -361,6 +384,10 @@ function setupDocumentSpeculationRules() {
                                         '[href*="/delete"]',
                                         '[href*="/destroy"]',
                                         '[href*="/remove"]',
+                                        '[href*="action=delete"]',
+                                        '[href*="action=logout"]',
+                                        '[href*="do=delete"]',
+                                        '[href*="do=logout"]',
                                     ].join(', ')
                                 }
                             }
@@ -382,9 +409,14 @@ function setupDocumentSpeculationRules() {
 }
 
 function preloadUsingSpeculationList(url, type) {
+    const config = getConfig()
     const script = document.createElement('script')
     script.type = 'speculationrules'
     script.setAttribute('data-flash-rules', '')
+    if (config.nonce) {
+        script.nonce = config.nonce
+        script.setAttribute('nonce', config.nonce)
+    }
     script.textContent = JSON.stringify({
         [type]: [{
             source: 'list',
@@ -558,9 +590,14 @@ let _lastPointerY = 0
 let _lastPointerTime = 0
 let _isRapidScrolling = false
 let _scrollTimeout = null
+let _lastTouchTimestamp = 0
 
 function isRapidScrolling() {
     return _isRapidScrolling
+}
+
+function getLastTouchTimestamp() {
+    return _lastTouchTimestamp
 }
 
 function resetInputState() {
@@ -574,6 +611,25 @@ function resetInputState() {
     }
     _currentHoverAnchor = null
     _isRapidScrolling = false
+    _lastTouchTimestamp = 0
+}
+
+function findAnchorFromEvent(event) {
+    if (!event) return null
+    if (typeof event.composedPath === 'function') {
+        const path = event.composedPath()
+        for (let i = 0; i < path.length; i++) {
+            const el = path[i]
+            if (el && el.nodeType === 1) {
+                if (el.tagName && el.tagName.toLowerCase() === 'a') return el
+                if (typeof el.closest === 'function') {
+                    const a = el.closest('a')
+                    if (a) return a
+                }
+            }
+        }
+    }
+    return event.target && event.target.closest ? event.target.closest('a') : null
 }
 
 function setupEventListeners(signal, onPreloadRequest, onToggleHUD) {
@@ -603,7 +659,10 @@ function setupEventListeners(signal, onPreloadRequest, onToggleHUD) {
 
     // 2. Pointer Down (Mobile touch tap & Desktop click start)
     document.addEventListener('pointerdown', (event) => {
-        const anchor = event.target && event.target.closest ? event.target.closest('a') : null
+        if (event.pointerType === 'touch') {
+            _lastTouchTimestamp = Date.now()
+        }
+        const anchor = findAnchorFromEvent(event)
         if (isPreloadable(anchor)) {
             const href = getAnchorHref(anchor)
             if (href) onPreloadRequest(href, 'high')
@@ -614,8 +673,10 @@ function setupEventListeners(signal, onPreloadRequest, onToggleHUD) {
     if (!isMousedownOnly) {
         document.addEventListener('pointerover', (event) => {
             if (event.pointerType !== 'mouse') return
+            // Ignore synthetic mouse events fired immediately after touch taps on mobile
+            if (_lastTouchTimestamp && (Date.now() - _lastTouchTimestamp) < 500) return
 
-            const anchor = event.target && event.target.closest ? event.target.closest('a') : null
+            const anchor = findAnchorFromEvent(event)
             if (!anchor || anchor === _currentHoverAnchor || !isPreloadable(anchor)) return
 
             _currentHoverAnchor = anchor
@@ -730,6 +791,22 @@ function resetViewportObservers() {
     }
 }
 
+function collectAnchors(root) {
+    if (!root) return []
+    const results = []
+    if (root.querySelectorAll) {
+        root.querySelectorAll('a').forEach(a => results.push(a))
+        try {
+            root.querySelectorAll('*').forEach(el => {
+                if (el.shadowRoot && el.shadowRoot.querySelectorAll) {
+                    el.shadowRoot.querySelectorAll('a').forEach(a => results.push(a))
+                }
+            })
+        } catch {}
+    }
+    return results
+}
+
 function setupViewportAndDynamicObserver(signal, onPreloadRequest) {
     const config = getConfig()
     const isViewport = config.intensity === 'viewport' || config.intensity === 'viewport-all'
@@ -758,8 +835,8 @@ function setupViewportAndDynamicObserver(signal, onPreloadRequest) {
             })
         }, { rootMargin: '200px' })
 
-        // Observe initial links
-        document.querySelectorAll('a').forEach((anchor) => {
+        // Observe initial links (including open shadow roots)
+        collectAnchors(document).forEach((anchor) => {
             if (isPreloadable(anchor)) _intersectionObserver.observe(anchor)
         })
 
@@ -767,8 +844,8 @@ function setupViewportAndDynamicObserver(signal, onPreloadRequest) {
         _mutationObserver = new MutationObserver((mutations) => {
             for (const m of mutations) {
                 for (const node of m.addedNodes) {
-                    if (node.nodeType !== Node.ELEMENT_NODE) continue
-                    const anchors = node.matches && node.matches('a') ? [node] : (node.querySelectorAll ? node.querySelectorAll('a') : [])
+                    if (node.nodeType !== (typeof Node !== 'undefined' ? Node.ELEMENT_NODE : 1)) continue
+                    const anchors = node.matches && node.matches('a') ? [node] : collectAnchors(node)
                     anchors.forEach((a) => {
                         if (isPreloadable(a) && _intersectionObserver) {
                             _intersectionObserver.observe(a)
@@ -990,7 +1067,7 @@ function updateHUD() {
 
     _hudElement.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:4px">
-      <span style="font-weight:bold;color:#38bdf8">⚡ Flash Page v1.0.3</span>
+      <span style="font-weight:bold;color:#38bdf8">⚡ Flash Page v1.0.4</span>
       <span id="flash-hud-close" style="cursor:pointer;color:#94a3b8;font-size:13px;padding:2px 4px">✕</span>
     </div>
     <div>Engine: <span style="color:#f1f5f9">${engine}</span></div>
@@ -1208,7 +1285,7 @@ export function init(customConfig = {}) {
             window.dispatchEvent(new CustomEvent('flash:ready', { detail: { status: status() } }))
         } catch {}
     }
-    logDebug('Flash Page v1.0.3 initialized with engine:', getEngine())
+    logDebug('Flash Page v1.0.4 initialized with engine:', getEngine())
 }
 
 /**

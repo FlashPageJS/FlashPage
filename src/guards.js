@@ -101,6 +101,14 @@ export function isPreloadable(anchor) {
         return false
     }
 
+    // Action query check (sensitive query parameters like ?action=logout, ?do=delete, ?act=signout)
+    if (urlObj.search) {
+        const query = urlObj.search.toLowerCase()
+        if (/[?&](action|act|do|op)=(logout|signout|delete|destroy|remove)(&|$)/i.test(query)) {
+            return false
+        }
+    }
+
     // Custom user filter callback
     if (typeof config.filter === 'function') {
         try {

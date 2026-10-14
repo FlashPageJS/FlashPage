@@ -1,4 +1,4 @@
-/*! Flash Page v1.0.3 - TypeScript Definitions | GPL-3.0-or-later */
+/*! Flash Page v1.0.4 - TypeScript Definitions | GPL-3.0-or-later */
 
 export interface FlashPageConfig {
     /**
@@ -59,6 +59,9 @@ export interface FlashPageConfig {
 
     /** Whether to expand cursor trajectory into a 3-point intent cone (default: true) */
     intentCone?: boolean;
+
+    /** Content Security Policy (CSP) nonce attached to generated Speculation Rules script tags */
+    nonce?: string;
 
     /** Custom filter predicate to allow or deny preloading a specific anchor */
     filter?: (url: URL, element: HTMLAnchorElement) => boolean;

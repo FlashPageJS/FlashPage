@@ -317,7 +317,8 @@ const fullDatasetMock = {
     flashHud: '',
     flashSubresources: '',
     flashNoMarkov: '',
-    flashNoBackpressure: ''
+    flashNoBackpressure: '',
+    flashNonce: 'test-nonce-12345'
 }
 
 const parsedFull = parseDatasetConfig(fullDatasetMock)
@@ -338,5 +339,6 @@ assert.equal(parsedFull.hud, true, 'Should parse flashHud')
 assert.equal(parsedFull.subresources, true, 'Should parse flashSubresources')
 assert.equal(parsedFull.markov, false, 'Should parse flashNoMarkov')
 assert.equal(parsedFull.backpressure, false, 'Should parse flashNoBackpressure')
+assert.equal(parsedFull.nonce, 'test-nonce-12345', 'Should parse flashNonce')
 
-console.log('✅ ALL EXHAUSTIVE UNIT, AI, DATASET & ADVANCED TESTS PASSED (75/75)!')
+console.log('✅ ALL EXHAUSTIVE UNIT, AI, DATASET & ADVANCED TESTS PASSED (76/76)!')
