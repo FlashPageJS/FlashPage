@@ -22,6 +22,11 @@ yarn-error.log*
 pnpm-debug.log*
 *.log
 
+# Environment & Local Secrets
+.env
+.env.*
+*.pem
+
 # Scratch, Temporary & Cache
 scratch/
 .tmp/

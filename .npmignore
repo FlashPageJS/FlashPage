@@ -17,6 +17,11 @@ scratch/
 tmp/
 *.log
 
+# Environment & Local Secrets
+.env
+.env.*
+*.pem
+
 # OS & Editor Metadata
 .DS_Store
 ._*
