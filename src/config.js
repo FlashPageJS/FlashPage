@@ -22,6 +22,13 @@ export const DEFAULT_CONFIG = {
     onPreload: null,
     onMetric: null,
     nonce: null,
+    adaptiveConcurrency: false,
+    beaconUrl: null,
+    analytics: null,
+    isolateHeatmaps: true,
+    cartSafeguards: true,
+    priorityQueue: true,
+    preconnectCdn: true,
 }
 
 let _config = { ...DEFAULT_CONFIG }
@@ -65,7 +72,14 @@ export function setCachedBattery(bat) {
 }
 
 export function parseDatasetConfig(targetDataset) {
-    const d = targetDataset || (typeof document !== 'undefined' && document.body ? document.body.dataset : {})
+    let d = {}
+    if (targetDataset) {
+        d = targetDataset
+    } else if (typeof document !== 'undefined') {
+        const bodyDs = document.body ? document.body.dataset : {}
+        const scriptDs = (document.currentScript && document.currentScript.dataset) ? document.currentScript.dataset : {}
+        d = { ...bodyDs, ...scriptDs }
+    }
     const parsed = {}
 
     // 1. Intensity & Hover Delay
@@ -138,6 +152,41 @@ export function parseDatasetConfig(targetDataset) {
         }
     }
 
+    // 14. Adaptive Concurrency
+    if ('flashAdaptiveConcurrency' in d) parsed.adaptiveConcurrency = true
+    if ('flashNoAdaptiveConcurrency' in d) parsed.adaptiveConcurrency = false
+
+    // 15. Telemetry Beacon URL (strictly validate http/https and prevent mixed content downgrade)
+    if ('flashBeaconUrl' in d && d.flashBeaconUrl) {
+        try {
+            const loc = typeof location !== 'undefined' ? location : null
+            const beaconUrlObj = new URL(d.flashBeaconUrl, loc ? loc.href : undefined)
+            if (['http:', 'https:'].includes(beaconUrlObj.protocol)) {
+                if (!(loc && loc.protocol === 'https:' && beaconUrlObj.protocol === 'http:')) {
+                    parsed.beaconUrl = beaconUrlObj.href
+                }
+            }
+        } catch {}
+    }
+
+    // 16. Analytics Exporter Mode
+    if ('flashAnalytics' in d) parsed.analytics = d.flashAnalytics
+
+    // 17. Heatmap & Session Replay Isolation
+    if ('flashNoIsolateHeatmaps' in d) parsed.isolateHeatmaps = false
+
+    // 18. E-Commerce Cart Safeguards
+    if ('flashNoCartSafeguards' in d) parsed.cartSafeguards = false
+    if ('flashCartSafeguards' in d) parsed.cartSafeguards = true
+
+    // 19. Prioritized Queue Scheduling
+    if ('flashNoPriorityQueue' in d) parsed.priorityQueue = false
+    if ('flashPriorityQueue' in d) parsed.priorityQueue = true
+
+    // 20. Subresource CDN Preconnect
+    if ('flashNoPreconnectCdn' in d) parsed.preconnectCdn = false
+    if ('flashPreconnectCdn' in d) parsed.preconnectCdn = true
+
     return parsed
 }
 
@@ -159,7 +208,7 @@ export function isEnvironmentEligible() {
 
     // 3. Battery Check
     if (_config.respectBattery && _cachedBattery) {
-        if (_cachedBattery.level < 0.20 && !_cachedBattery.charging) {
+        if (typeof _cachedBattery.level === 'number' && _cachedBattery.level < 0.20 && !_cachedBattery.charging) {
             return false
         }
     }

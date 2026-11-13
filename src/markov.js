@@ -39,28 +39,44 @@ export function initMarkovModel(onPreloadRequest) {
     } catch {}
 }
 
+const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+
 export function recordTransition(fromPath, toPath) {
     try {
         if (typeof localStorage === 'undefined' || !fromPath || !toPath) return
+        if (typeof fromPath !== 'string' || typeof toPath !== 'string') return
+        if (FORBIDDEN_KEYS.has(fromPath) || FORBIDDEN_KEYS.has(toPath)) return
+
         const raw = localStorage.getItem('flash_markov')
-        const matrix = raw ? JSON.parse(raw) : {}
+        let matrix = {}
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw)
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    matrix = parsed
+                }
+            } catch {}
+        }
 
-        const entry = matrix[fromPath] || {}
+        const entry = (Object.prototype.hasOwnProperty.call(matrix, fromPath) && typeof matrix[fromPath] === 'object' && !Array.isArray(matrix[fromPath]))
+            ? matrix[fromPath]
+            : {}
         delete matrix[fromPath] // re-insert so recently used paths survive
-        entry[toPath] = (entry[toPath] || 0) + 1
+        entry[toPath] = (typeof entry[toPath] === 'number' ? entry[toPath] : 0) + 1
 
-        const dests = Object.keys(entry)
+        const dests = Object.keys(entry).filter(d => !FORBIDDEN_KEYS.has(d))
         if (dests.length > 5) {
             const weakest = dests
                 .filter(d => d !== toPath)
                 .sort((a, b) => entry[a] - entry[b])[0]
-            delete entry[weakest]
+            if (weakest) delete entry[weakest]
         }
         matrix[fromPath] = entry
 
         // Cap matrix to 50 source paths (a few KB at most)
-        if (Object.keys(matrix).length > 50) {
-            delete matrix[Object.keys(matrix)[0]]
+        const keys = Object.keys(matrix).filter(k => !FORBIDDEN_KEYS.has(k))
+        if (keys.length > 50) {
+            delete matrix[keys[0]]
         }
 
         localStorage.setItem('flash_markov', JSON.stringify(matrix))
@@ -69,19 +85,25 @@ export function recordTransition(fromPath, toPath) {
 
 export function predictNextLink(fromPath) {
     try {
-        if (typeof localStorage === 'undefined' || !fromPath) return null
+        if (typeof localStorage === 'undefined' || !fromPath || typeof fromPath !== 'string') return null
+        if (FORBIDDEN_KEYS.has(fromPath)) return null
+
         const raw = localStorage.getItem('flash_markov')
         if (!raw) return null
 
         const matrix = JSON.parse(raw)
+        if (!matrix || typeof matrix !== 'object' || Array.isArray(matrix)) return null
+        if (!Object.prototype.hasOwnProperty.call(matrix, fromPath)) return null
+
         const destinations = matrix[fromPath]
-        if (!destinations) return null
+        if (!destinations || typeof destinations !== 'object' || Array.isArray(destinations)) return null
 
         let total = 0
         let bestDest = null
         let maxCount = 0
 
         for (const [dest, count] of Object.entries(destinations)) {
+            if (FORBIDDEN_KEYS.has(dest) || typeof count !== 'number') continue
             total += count
             if (count > maxCount) {
                 maxCount = count

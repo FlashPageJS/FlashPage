@@ -1,6 +1,37 @@
 Flash Page Changelog
 ====================
 
+Version 1.2.0 (November 13, 2026)
+-----------------------------------
+
+Added:
+- Official WordPress & WooCommerce Integration: Added standalone, production-ready WordPress plugin package in integrations/wordpress/flash-page/ with full Admin settings UI (edition selection, preload intensity, admin-only HUD toggle, and custom exclusion rules) and dedicated WooCommerce protection.
+- Priority Queue Scheduling Architecture: Implemented a weighted priority queue scheduler (priorityQueue) prioritizing high (explicit preloads & cursor intent-cone hits) > auto (hover) > low (viewport & Markov predictions) with LIFO ordering within tiers to ensure high-intent user interactions are never delayed by passive background preloads.
+- E-Commerce Smart Cart & Checkout Guard: Auto-protects WooCommerce, Shopify, and Magento checkout funnels (cartSafeguards) by blocking speculative prefetching on sensitive routes (/cart, /checkout, /basket, /my-account, ?add-to-cart=) in both JavaScript guards and native Speculation Rules selectors.
+- Subresource Preconnect & CDN Handshake 2.0: Automatically extracts external stylesheet and web font CDN origins (e.g. Google Fonts) from prefetched HTML and dynamically injects preconnect and dns-prefetch link tags with automated lifecycle cleanup.
+- Framework Ecosystem Adapters: Added official helpers in src/framework-utils.js: React FlashLink component and useFlashPage hook, Vue 3 vFlash directive with argument modifiers and useFlash composable, Svelte 5 flashAction directive, and Astro setupAstroTransitions listener.
+- Master Parameters Matrix Expansion: Expanded Master Parameters Matrix from 25 to 28 parameters (cartSafeguards, priorityQueue, preconnectCdn) with full test suite coverage.
+
+Changed:
+- Distribution Bundles: Rebuilt all 4 universal bundles (flashpage.js, flashpage.min.js, flashpage.lite.js, flashpage.lite.min.js) with v1.2.0 headers and synchronized asset deployment to the WordPress plugin.
+- TypeScript Definitions: Added full type definitions for all new parameters and framework components in flashpage.d.ts and flashpage.lite.d.ts.
+- Documentation: Updated README.md with comprehensive deep dives for Priority Queue Scheduling, E-Commerce Cart Safeguards, and WordPress & WooCommerce Plugin setup.
+
+Version 1.1.0 (October 14, 2026)
+-----------------------------------
+
+Added:
+- Adaptive Dynamic Concurrency: Dynamically scales prefetch concurrency between 1 and 6 based on real-time Network Information API signals (navigator.connection.downlink and rtt). Fast connections (>=10 Mbps or <50ms RTT) scale up to 6 concurrent fetches; slow connections (<1.5 Mbps or >250ms RTT) scale down to 1. Controlled via init({ adaptiveConcurrency }) or data-flash-adaptive-concurrency.
+- Native Analytics & Telemetry Exporters: Added built-in streaming integrations for Google Analytics 4 (GA4 window.gtag), Datadog RUM (window.DD_RUM), Sentry (window.Sentry), Beacon API (navigator.sendBeacon via beaconUrl), or custom export functions.
+- Prerender Activation Efficacy Tracking: Expanded telemetry metrics with wasPrerendered, activationStart, and lcpSavedMs utilizing document.prerendering and PerformanceNavigationTiming.activationStart to quantify milliseconds saved on Largest Contentful Paint.
+- Heatmap & Session Replay Isolation: Auto-pauses Hotjar (window.hj), Microsoft Clarity (window.clarity), and FullStory (window.FS) during speculative rendering to prevent phantom session recording and false-positive user journey analytics. Resumes tracking automatically upon prerenderingchange activation. Controlled via init({ isolateHeatmaps }) or data-flash-no-isolate-heatmaps.
+- Parameter Matrix Expansion: Expanded Master Parameters Matrix from 21 to 25 parameters (adaptiveConcurrency, beaconUrl, analytics, isolateHeatmaps) with full test suite coverage.
+
+Changed:
+- Queue & Status Reporting: Exposed effectiveConcurrency in status() and getQueueStatus() to give developers real-time observability into active network concurrency limits.
+- TypeScript Definitions: Added full type definitions for adaptiveConcurrency, beaconUrl, analytics, isolateHeatmaps, wasPrerendered, activationStart, lcpSavedMs, and effectiveConcurrency in both flashpage.d.ts and flashpage.lite.d.ts.
+- Documentation: Updated README.md with comprehensive deep dives for Adaptive Concurrency, Session Replay Isolation, and Native Telemetry Exporters.
+
 Version 1.0.4 (October 14, 2026)
 -----------------------------------
 

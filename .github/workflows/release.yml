@@ -45,12 +45,19 @@ jobs:
             flashpage.lite.min.js
             flashpage.d.ts
             flashpage.lite.d.ts
+            dist/flash-page.zip
             LICENSE
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to npm with Provenance
-        run: npm publish --provenance --access public
+        run: |
+          CURRENT_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('package.json', 'utf8')).version")
+          if npm view "flash-page@${CURRENT_VERSION}" version >/dev/null 2>&1; then
+            echo "Notice: Version ${CURRENT_VERSION} is already published to npm. Skipping duplicate publish."
+          else
+            npm publish --provenance --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

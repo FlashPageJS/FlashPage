@@ -1,4 +1,4 @@
-/*! Flash Page v1.0.4 | GPL-3.0-or-later */
+/*! Flash Page v1.2.0 | GPL-3.0-or-later */
 
 const DEFAULT_CONFIG = {
     intensity: 65,
@@ -22,6 +22,13 @@ const DEFAULT_CONFIG = {
     onPreload: null,
     onMetric: null,
     nonce: null,
+    adaptiveConcurrency: false,
+    beaconUrl: null,
+    analytics: null,
+    isolateHeatmaps: true,
+    cartSafeguards: true,
+    priorityQueue: true,
+    preconnectCdn: true,
 }
 
 let _config = { ...DEFAULT_CONFIG }
@@ -65,7 +72,14 @@ function setCachedBattery(bat) {
 }
 
 function parseDatasetConfig(targetDataset) {
-    const d = targetDataset || (typeof document !== 'undefined' && document.body ? document.body.dataset : {})
+    let d = {}
+    if (targetDataset) {
+        d = targetDataset
+    } else if (typeof document !== 'undefined') {
+        const bodyDs = document.body ? document.body.dataset : {}
+        const scriptDs = (document.currentScript && document.currentScript.dataset) ? document.currentScript.dataset : {}
+        d = { ...bodyDs, ...scriptDs }
+    }
     const parsed = {}
 
     // 1. Intensity & Hover Delay
@@ -138,6 +152,41 @@ function parseDatasetConfig(targetDataset) {
         }
     }
 
+    // 14. Adaptive Concurrency
+    if ('flashAdaptiveConcurrency' in d) parsed.adaptiveConcurrency = true
+    if ('flashNoAdaptiveConcurrency' in d) parsed.adaptiveConcurrency = false
+
+    // 15. Telemetry Beacon URL (strictly validate http/https and prevent mixed content downgrade)
+    if ('flashBeaconUrl' in d && d.flashBeaconUrl) {
+        try {
+            const loc = typeof location !== 'undefined' ? location : null
+            const beaconUrlObj = new URL(d.flashBeaconUrl, loc ? loc.href : undefined)
+            if (['http:', 'https:'].includes(beaconUrlObj.protocol)) {
+                if (!(loc && loc.protocol === 'https:' && beaconUrlObj.protocol === 'http:')) {
+                    parsed.beaconUrl = beaconUrlObj.href
+                }
+            }
+        } catch {}
+    }
+
+    // 16. Analytics Exporter Mode
+    if ('flashAnalytics' in d) parsed.analytics = d.flashAnalytics
+
+    // 17. Heatmap & Session Replay Isolation
+    if ('flashNoIsolateHeatmaps' in d) parsed.isolateHeatmaps = false
+
+    // 18. E-Commerce Cart Safeguards
+    if ('flashNoCartSafeguards' in d) parsed.cartSafeguards = false
+    if ('flashCartSafeguards' in d) parsed.cartSafeguards = true
+
+    // 19. Prioritized Queue Scheduling
+    if ('flashNoPriorityQueue' in d) parsed.priorityQueue = false
+    if ('flashPriorityQueue' in d) parsed.priorityQueue = true
+
+    // 20. Subresource CDN Preconnect
+    if ('flashNoPreconnectCdn' in d) parsed.preconnectCdn = false
+    if ('flashPreconnectCdn' in d) parsed.preconnectCdn = true
+
     return parsed
 }
 
@@ -159,7 +208,7 @@ function isEnvironmentEligible() {
 
     // 3. Battery Check
     if (_config.respectBattery && _cachedBattery) {
-        if (_cachedBattery.level < 0.20 && !_cachedBattery.charging) {
+        if (typeof _cachedBattery.level === 'number' && _cachedBattery.level < 0.20 && !_cachedBattery.charging) {
             return false
         }
     }
@@ -186,6 +235,124 @@ function getAnchorHref(anchor) {
     return null
 }
 
+function safeDecodeURI(str) {
+    if (!str || typeof str !== 'string') return ''
+    let decoded = str
+    for (let i = 0; i < 2; i++) {
+        try {
+            const next = decodeURIComponent(decoded)
+            if (next === decoded) break
+            decoded = next
+        } catch {
+            break
+        }
+    }
+    return decoded
+}
+
+function isUrlPreloadable(url, config = getConfig(), anchor = null) {
+    if (!url || typeof url !== 'string' || !url.trim()) return false
+    if (!isServerHealthy()) return false
+
+    // Control characters, null bytes, traversal, and protocol obfuscation checks
+    const rawTrimmed = url.trim()
+    const strippedRaw = rawTrimmed.toLowerCase().replace(/[\x00-\x20\s]/g, '')
+    if (strippedRaw.startsWith('javascript:') || strippedRaw.startsWith('data:') || strippedRaw.startsWith('vbscript:')) {
+        return false
+    }
+    if (url.includes('\0') || url.includes('%00')) {
+        return false
+    }
+    const decodedUrl = safeDecodeURI(url)
+    if (decodedUrl.includes('\0') || decodedUrl.includes('..')) {
+        return false
+    }
+
+    const loc = typeof location !== 'undefined' ? location : null
+    let urlObj
+    try {
+        urlObj = new URL(rawTrimmed, loc ? loc.href : undefined)
+    } catch {
+        return false
+    }
+
+    // Protocol check
+    if (!['http:', 'https:'].includes(urlObj.protocol)) return false
+    if (loc && urlObj.protocol === 'http:' && loc.protocol === 'https:') return false
+
+    // Reject preloading the exact current page
+    if (loc && urlObj.href === loc.href) {
+        return false
+    }
+
+    const ds = anchor && anchor.dataset ? anchor.dataset : {}
+    const isMarkedAllow = 'flash' in ds || 'instant' in ds
+
+    // Whitelist check
+    if (config.whitelist && !isMarkedAllow) {
+        return false
+    }
+
+    // Origin check
+    if (loc && urlObj.origin !== loc.origin) {
+        const allowed = config.allowExternalLinks || isMarkedAllow
+        if (!allowed) return false
+    } else if (!loc && !config.allowExternalLinks && !isMarkedAllow && urlObj.origin) {
+        // In environments without location, default to rejecting absolute external origins
+        if (rawTrimmed.startsWith('http://') || rawTrimmed.startsWith('https://') || rawTrimmed.startsWith('//')) {
+            return false
+        }
+    }
+
+    // Query string check
+    if (!config.allowQueryString && urlObj.search && !isMarkedAllow) {
+        return false
+    }
+
+    // Same-page hash anchor check
+    if (loc && urlObj.hash && (urlObj.pathname + urlObj.search === loc.pathname + loc.search)) {
+        return false
+    }
+
+    // Action path check (sensitive endpoints) with multi-pass decoding
+    const path = safeDecodeURI(urlObj.pathname).toLowerCase()
+    if (/(^|\/)(logout|signout|sign-out|log-out|delete|destroy|remove|admin|wp-admin|wp-login)(\/|$|\.)/i.test(path)) {
+        return false
+    }
+
+    // Action query check with multi-pass decoding
+    if (urlObj.search) {
+        const query = safeDecodeURI(urlObj.search).toLowerCase()
+        if (/[?&](action|act|do|op)=(logout|signout|delete|destroy|remove)(&|$)/i.test(query)) {
+            return false
+        }
+    }
+
+    // E-Commerce Cart & Checkout Guard
+    if (config.cartSafeguards) {
+        if (/(^|\/)(cart|checkout|basket|bag|shopping-cart|shopping-basket|my-cart|orders?|my-account|customer\/account|account|billing|payment)(\/|$|\.)/i.test(path)) {
+            return false
+        }
+        if (urlObj.search) {
+            const query = safeDecodeURI(urlObj.search).toLowerCase()
+            if (/[?&](add-to-cart|wc-ajax|empty-cart|cart_action|cart-action|remove_item|undo_item)(=|&|$)/i.test(query)) {
+                return false
+            }
+        }
+    }
+
+    // Custom user filter callback
+    if (typeof config.filter === 'function') {
+        try {
+            if (!config.filter(urlObj, anchor)) return false
+        } catch {
+            return false
+        }
+    }
+
+    return true
+}
+
 function isPreloadable(anchor) {
     if (!anchor) return false
 
@@ -195,20 +362,6 @@ function isPreloadable(anchor) {
     // Normalize raw href from HTMLAnchorElement, SVGAElement, or generic element
     const rawHref = getAnchorHref(anchor)
     if (!rawHref || typeof rawHref !== 'string' || !rawHref.trim()) return false
-
-    // Parse URL safely with current location
-    const loc = typeof location !== 'undefined' ? location : null
-    let urlObj
-    try {
-        urlObj = new URL(rawHref.trim(), loc ? loc.href : undefined)
-    } catch {
-        return false
-    }
-
-    // Reject preloading the exact current page
-    if (loc && urlObj.href === loc.href) {
-        return false
-    }
 
     const config = getConfig()
     const ds = anchor.dataset || {}
@@ -231,13 +384,21 @@ function isPreloadable(anchor) {
         return false
     }
 
-    // Target attribute check (e.g. target="_blank")
-    if (anchor.target && anchor.target !== '_self') {
+    // Target attribute check (normalize HTMLAnchorElement and SVGAElement target)
+    const targetVal = typeof anchor.target === 'string'
+        ? anchor.target
+        : (anchor.target && typeof anchor.target.baseVal === 'string'
+            ? anchor.target.baseVal
+            : (typeof anchor.getAttribute === 'function' ? anchor.getAttribute('target') : null))
+    if (targetVal && targetVal !== '_self') {
         return false
     }
 
     // Rel check: nofollow
-    if (anchor.relList && typeof anchor.relList.contains === 'function' && anchor.relList.contains('nofollow')) {
+    const relVal = anchor.relList && typeof anchor.relList.contains === 'function'
+        ? anchor.relList.contains('nofollow')
+        : (typeof anchor.getAttribute === 'function' && /\bnofollow\b/i.test(anchor.getAttribute('rel') || ''))
+    if (relVal) {
         return false
     }
 
@@ -251,59 +412,60 @@ function isPreloadable(anchor) {
         }
     }
 
-    // Origin check
-    if (loc && urlObj.origin !== loc.origin) {
-        const allowed = config.allowExternalLinks || isMarkedAllow
-        if (!allowed) return false
-    }
-
-    // Protocol check
-    if (!['http:', 'https:'].includes(urlObj.protocol)) return false
-    if (loc && urlObj.protocol === 'http:' && loc.protocol === 'https:') return false
-
-    // Query string check
-    if (!config.allowQueryString && urlObj.search && !isMarkedAllow) {
-        return false
-    }
-
-    // Same-page hash anchor check
-    if (loc && urlObj.hash && (urlObj.pathname + urlObj.search === loc.pathname + loc.search)) {
-        return false
-    }
-
-    // Action path check (sensitive endpoints)
-    let path = urlObj.pathname.toLowerCase()
-    try {
-        path = decodeURIComponent(urlObj.pathname).toLowerCase()
-    } catch {}
-    if (/(^|\/)(logout|signout|delete|destroy|remove)(\/|$|\.)/i.test(path)) {
-        return false
-    }
-
-    // Action query check (sensitive query parameters like ?action=logout, ?do=delete, ?act=signout)
-    if (urlObj.search) {
-        let query = urlObj.search.toLowerCase()
-        try {
-            query = decodeURIComponent(urlObj.search).toLowerCase()
-        } catch {}
-        if (/[?&](action|act|do|op)=(logout|signout|delete|destroy|remove)(&|$)/i.test(query)) {
-            return false
+    // E-Commerce attribute and class checks
+    if (config.cartSafeguards) {
+        if (typeof anchor.hasAttribute === 'function') {
+            if (anchor.hasAttribute('data-cart-action') ||
+                anchor.hasAttribute('data-add-to-cart') ||
+                anchor.hasAttribute('data-woocommerce')) {
+                return false
+            }
+        }
+        if (anchor.classList && typeof anchor.classList.contains === 'function') {
+            if (anchor.classList.contains('add_to_cart_button') ||
+                anchor.classList.contains('single_add_to_cart_button') ||
+                anchor.classList.contains('ajax_add_to_cart')) {
+                return false
+            }
         }
     }
 
-    // Custom user filter callback
-    if (typeof config.filter === 'function') {
-        try {
-            if (!config.filter(urlObj, anchor)) return false
-        } catch {
-            return false
-        }
-    }
+    return isUrlPreloadable(rawHref, config, anchor)
+}
 
-    return true
+function isolateHeatmaps() {
+    if (typeof document === 'undefined' || typeof window === 'undefined') return
+    const config = getConfig()
+    if (!config.isolateHeatmaps) return
+
+    if ('prerendering' in document && document.prerendering) {
+        if (window.hj && typeof window.hj.pause === 'function') {
+            try { window.hj.pause() } catch {}
+        }
+        if (window.clarity && typeof window.clarity.pause === 'function') {
+            try { window.clarity.pause() } catch {}
+        }
+        if (window.FS && typeof window.FS.shutdown === 'function') {
+            try { window.FS.shutdown() } catch {}
+        }
+
+        document.addEventListener('prerenderingchange', () => {
+            if (window.hj && typeof window.hj.resume === 'function') {
+                try { window.hj.resume() } catch {}
+            }
+            if (window.clarity && typeof window.clarity.resume === 'function') {
+                try { window.clarity.resume() } catch {}
+            }
+            if (window.FS && typeof window.FS.restart === 'function') {
+                try { window.FS.restart() } catch {}
+            }
+        }, { once: true })
+    }
 }
 
 let _speculationMode = 'none' // 'document-rules' | 'speculation-list' | 'link' | 'fetch'
+let _activeLinkNodes = []
+let _activeRuleNodes = []
 
 function getEngine() {
     return _speculationMode
@@ -311,7 +473,9 @@ function getEngine() {
 
 function resetEngine() {
     _speculationMode = 'none'
-    if (typeof document !== 'undefined') {
+    _activeLinkNodes = []
+    _activeRuleNodes = []
+    if (typeof document !== 'undefined' && typeof document.querySelectorAll === 'function') {
         const injectedRules = document.querySelectorAll('script[data-flash-rules]')
         injectedRules.forEach(el => {
             if (el.parentNode) el.parentNode.removeChild(el)
@@ -331,6 +495,7 @@ function setupEngine() {
         HTMLScriptElement.supports('speculationrules')
 
     const supportsPrefetchRel = typeof document !== 'undefined' &&
+        typeof document.createElement === 'function' &&
         document.createElement('link').relList &&
         document.createElement('link').relList.supports &&
         document.createElement('link').relList.supports('prefetch')
@@ -377,6 +542,7 @@ function setupDocumentSpeculationRules() {
                     where: {
                         and: [
                             { href_matches: '/*' },
+                            ...(config.whitelist ? [{ selector_matches: '[data-flash], [data-instant]' }] : []),
                             {
                                 not: {
                                     selector_matches: [
@@ -398,6 +564,16 @@ function setupDocumentSpeculationRules() {
                                         '[href*="action=logout"]',
                                         '[href*="do=delete"]',
                                         '[href*="do=logout"]',
+                                        ...(config.cartSafeguards ? [
+                                            '[href*="/cart"]',
+                                            '[href*="/checkout"]',
+                                            '[href*="/basket"]',
+                                            '[href*="/my-account"]',
+                                            '[href*="add-to-cart="]',
+                                            '[data-cart-action]',
+                                            '[data-add-to-cart]',
+                                            '.add_to_cart_button',
+                                        ] : [])
                                     ].join(', ')
                                 }
                             }
@@ -428,14 +604,22 @@ function preloadUsingSpeculationList(url, type) {
         script.nonce = sanitizedNonce
         script.setAttribute('nonce', sanitizedNonce)
     }
+    const safeType = type === 'prerender' ? 'prerender' : 'prefetch'
     script.textContent = JSON.stringify({
-        [type]: [{
+        [safeType]: [{
             source: 'list',
             urls: [url]
         }]
     }).replace(/<\/script/gi, '<\\/script')
     const target = document.head || document.documentElement
-    if (target) target.appendChild(script)
+    if (target) {
+        target.appendChild(script)
+        _activeRuleNodes.push(script)
+        if (_activeRuleNodes.length > 20) {
+            const old = _activeRuleNodes.shift()
+            if (old && old.parentNode) old.parentNode.removeChild(old)
+        }
+    }
     return new Promise(resolve => setTimeout(resolve, 400))
 }
 
@@ -460,7 +644,14 @@ function preloadUsingLink(url, priority = 'auto') {
         link.addEventListener('error', done, { once: true })
         setTimeout(done, 500)
         const target = document.head || document.documentElement
-        if (target) target.appendChild(link)
+        if (target) {
+            target.appendChild(link)
+            _activeLinkNodes.push(link)
+            if (_activeLinkNodes.length > 25) {
+                const old = _activeLinkNodes.shift()
+                if (old && old.parentNode) old.parentNode.removeChild(old)
+            }
+        }
     })
 }
 
@@ -500,12 +691,34 @@ let _inflightCount = 0
 let _prefetchQueue = []
 let _listeners = []
 
+function getEffectiveConcurrency(config = getConfig()) {
+    if (!config.adaptiveConcurrency) return config.maxConcurrent
+    if (typeof navigator !== 'undefined' && navigator.connection) {
+        const conn = navigator.connection
+        if ((typeof conn.downlink === 'number' && conn.downlink >= 10) || (typeof conn.rtt === 'number' && conn.rtt > 0 && conn.rtt < 50)) {
+            return Math.min(6, Math.max(config.maxConcurrent, config.maxConcurrent * 2))
+        }
+        if ((typeof conn.downlink === 'number' && conn.downlink < 1.5) || (typeof conn.rtt === 'number' && conn.rtt > 250)) {
+            return 1
+        }
+    }
+    return config.maxConcurrent
+}
+
+function getPriorityWeight(priority) {
+    if (priority === 'high') return 3
+    if (priority === 'low') return 1
+    return 2 // 'auto', 'medium', or undefined
+}
+
 function getQueueStatus() {
     return {
         preloadedCount: _preloadedUrls.size,
         inflightCount: _inflightCount,
         queueLength: _prefetchQueue.length,
         preloadedUrls: _preloadedUrls,
+        effectiveConcurrency: getEffectiveConcurrency(),
+        queue: _prefetchQueue.map(item => ({ url: item.url, priority: item.priority })),
     }
 }
 
@@ -530,16 +743,32 @@ function hasPreloaded(url) {
     return _preloadedUrls.has(url)
 }
 
-function enqueuePrefetch(url, priority, onSubresources) {
+function enqueuePrefetch(url, priority = 'auto', onSubresources) {
     _preloadedUrls.add(url)
-    _prefetchQueue.push({ url, priority, onSubresources })
+    const config = getConfig()
+    const weight = getPriorityWeight(priority)
+    const item = { url, priority, onSubresources, weight, timestamp: Date.now() }
+
+    if (config.priorityQueue) {
+        // Insert before the first item with less-or-equal weight (priority order + LIFO within tier)
+        const idx = _prefetchQueue.findIndex(q => q.weight <= weight)
+        if (idx === -1) {
+            _prefetchQueue.push(item)
+        } else {
+            _prefetchQueue.splice(idx, 0, item)
+        }
+    } else {
+        _prefetchQueue.push(item)
+    }
+
     notifyListeners()
     processQueue()
 }
 
 function processQueue() {
     const config = getConfig()
-    while (_inflightCount < config.maxConcurrent && _prefetchQueue.length > 0) {
+    const limit = getEffectiveConcurrency(config)
+    while (_inflightCount < limit && _prefetchQueue.length > 0) {
         const { url, priority, onSubresources } = _prefetchQueue.shift()
         _inflightCount++
         notifyListeners()
@@ -676,7 +905,8 @@ function setupEventListeners(signal, onPreloadRequest, onToggleHUD) {
         const anchor = findAnchorFromEvent(event)
         if (isPreloadable(anchor)) {
             const href = getAnchorHref(anchor)
-            if (href) onPreloadRequest(href, 'high')
+            const prio = (anchor && anchor.dataset && anchor.dataset.flashPriority) || 'high'
+            if (href) onPreloadRequest(href, prio)
         }
     }, { capture: true, passive: true, signal })
 
@@ -703,7 +933,7 @@ function setupEventListeners(signal, onPreloadRequest, onToggleHUD) {
                 _currentHoverAnchor = null
                 anchor.removeEventListener('pointerout', onLeave)
             }
-            anchor.addEventListener('pointerout', onLeave, { passive: true })
+            anchor.addEventListener('pointerout', onLeave, signal ? { passive: true, signal } : { passive: true })
 
             if (isMousedown) return
 
@@ -720,7 +950,8 @@ function setupEventListeners(signal, onPreloadRequest, onToggleHUD) {
 
             _hoverTimer = setTimeout(() => {
                 const href = getAnchorHref(anchor)
-                if (href) onPreloadRequest(href, 'high')
+                const prio = (anchor && anchor.dataset && anchor.dataset.flashPriority) || 'high'
+                if (href) onPreloadRequest(href, prio)
                 _hoverTimer = null
             }, delay)
         }, { capture: true, passive: true, signal })
@@ -778,7 +1009,7 @@ function onPointerMoveTrajectory(event, onPreloadRequest) {
 
     for (const pt of testPoints) {
         if (pt.x < 0 || pt.x > window.innerWidth || pt.y < 0 || pt.y > window.innerHeight) continue
-        const element = document.elementFromPoint(pt.x, pt.y)
+        const element = typeof document.elementFromPoint === 'function' ? document.elementFromPoint(pt.x, pt.y) : null
         const anchor = element && element.closest ? element.closest('a') : null
         if (isPreloadable(anchor)) {
             const href = getAnchorHref(anchor)
@@ -909,28 +1140,44 @@ function initMarkovModel(onPreloadRequest) {
     } catch {}
 }
 
+const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+
 function recordTransition(fromPath, toPath) {
     try {
         if (typeof localStorage === 'undefined' || !fromPath || !toPath) return
+        if (typeof fromPath !== 'string' || typeof toPath !== 'string') return
+        if (FORBIDDEN_KEYS.has(fromPath) || FORBIDDEN_KEYS.has(toPath)) return
+
         const raw = localStorage.getItem('flash_markov')
-        const matrix = raw ? JSON.parse(raw) : {}
+        let matrix = {}
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw)
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    matrix = parsed
+                }
+            } catch {}
+        }
 
-        const entry = matrix[fromPath] || {}
+        const entry = (Object.prototype.hasOwnProperty.call(matrix, fromPath) && typeof matrix[fromPath] === 'object' && !Array.isArray(matrix[fromPath]))
+            ? matrix[fromPath]
+            : {}
         delete matrix[fromPath] // re-insert so recently used paths survive
-        entry[toPath] = (entry[toPath] || 0) + 1
+        entry[toPath] = (typeof entry[toPath] === 'number' ? entry[toPath] : 0) + 1
 
-        const dests = Object.keys(entry)
+        const dests = Object.keys(entry).filter(d => !FORBIDDEN_KEYS.has(d))
         if (dests.length > 5) {
             const weakest = dests
                 .filter(d => d !== toPath)
                 .sort((a, b) => entry[a] - entry[b])[0]
-            delete entry[weakest]
+            if (weakest) delete entry[weakest]
         }
         matrix[fromPath] = entry
 
         // Cap matrix to 50 source paths (a few KB at most)
-        if (Object.keys(matrix).length > 50) {
-            delete matrix[Object.keys(matrix)[0]]
+        const keys = Object.keys(matrix).filter(k => !FORBIDDEN_KEYS.has(k))
+        if (keys.length > 50) {
+            delete matrix[keys[0]]
         }
 
         localStorage.setItem('flash_markov', JSON.stringify(matrix))
@@ -939,19 +1186,25 @@ function recordTransition(fromPath, toPath) {
 
 function predictNextLink(fromPath) {
     try {
-        if (typeof localStorage === 'undefined' || !fromPath) return null
+        if (typeof localStorage === 'undefined' || !fromPath || typeof fromPath !== 'string') return null
+        if (FORBIDDEN_KEYS.has(fromPath)) return null
+
         const raw = localStorage.getItem('flash_markov')
         if (!raw) return null
 
         const matrix = JSON.parse(raw)
+        if (!matrix || typeof matrix !== 'object' || Array.isArray(matrix)) return null
+        if (!Object.prototype.hasOwnProperty.call(matrix, fromPath)) return null
+
         const destinations = matrix[fromPath]
-        if (!destinations) return null
+        if (!destinations || typeof destinations !== 'object' || Array.isArray(destinations)) return null
 
         let total = 0
         let bestDest = null
         let maxCount = 0
 
         for (const [dest, count] of Object.entries(destinations)) {
+            if (FORBIDDEN_KEYS.has(dest) || typeof count !== 'number') continue
             total += count
             if (count > maxCount) {
                 maxCount = count
@@ -969,6 +1222,22 @@ function predictNextLink(fromPath) {
     }
 }
 
+let _preconnectedOrigins = new Set()
+
+function getPreconnectedOrigins() {
+    return new Set(_preconnectedOrigins)
+}
+
+function resetSubresources() {
+    _preconnectedOrigins.clear()
+    if (typeof document !== 'undefined') {
+        const injected = document.querySelectorAll('link[data-flash-preconnect], link[data-flash-dns]')
+        injected.forEach(el => {
+            if (el.parentNode) el.parentNode.removeChild(el)
+        })
+    }
+}
+
 function extractSubresources(htmlText) {
     if (!htmlText || typeof htmlText !== 'string') return []
     const subresources = []
@@ -977,13 +1246,14 @@ function extractSubresources(htmlText) {
     const linkMatches = htmlText.matchAll(/<link\b([^>]+)>/gi)
     for (const m of linkMatches) {
         const attrs = m[1]
-        const isStylesheet = /\brel\s*=\s*["']stylesheet["']/i.test(attrs)
-        const isFont = /\bas\s*=\s*["']font["']/i.test(attrs)
+        const isStylesheet = /\brel\s*=\s*(?:["']stylesheet["']|stylesheet\b)/i.test(attrs)
+        const isFont = /\bas\s*=\s*(?:["']font["']|font\b)/i.test(attrs)
 
         if (isStylesheet || isFont) {
-            const hrefMatch = attrs.match(/\bhref\s*=\s*["']([^"']+)["']/i)
-            if (hrefMatch && hrefMatch[1]) {
-                subresources.push(hrefMatch[1])
+            const hrefMatch = attrs.match(/\bhref\s*=\s*(?:["']([^"']+)["']|([^\s>]+))/i)
+            const hrefVal = hrefMatch ? (hrefMatch[1] || hrefMatch[2]) : null
+            if (hrefVal) {
+                subresources.push(hrefVal)
             }
         }
     }
@@ -991,13 +1261,71 @@ function extractSubresources(htmlText) {
     return subresources.slice(0, 4)
 }
 
-function prewarmSubresources(htmlText) {
+function extractExternalOrigins(htmlText) {
+    if (!htmlText || typeof htmlText !== 'string') return []
     const assets = extractSubresources(htmlText)
+    const origins = new Set()
+    const loc = typeof location !== 'undefined' ? location : null
+
+    for (const assetUrl of assets) {
+        try {
+            const parsed = new URL(assetUrl, loc ? loc.href : undefined)
+            if (['http:', 'https:'].includes(parsed.protocol)) {
+                if (!loc || parsed.origin !== loc.origin) {
+                    origins.add(parsed.origin)
+                }
+            }
+        } catch {}
+    }
+
+    return Array.from(origins).slice(0, 4)
+}
+
+function preconnectOrigins(origins) {
+    if (typeof document === 'undefined' || !Array.isArray(origins)) return
+    const target = document.head || document.documentElement
+    if (!target) return
+
+    for (const origin of origins) {
+        if (!origin || _preconnectedOrigins.has(origin)) continue
+        if (_preconnectedOrigins.size >= 20) break
+        _preconnectedOrigins.add(origin)
+
+        try {
+            const linkPreconnect = document.createElement('link')
+            linkPreconnect.rel = 'preconnect'
+            linkPreconnect.href = origin
+            linkPreconnect.crossOrigin = ''
+            linkPreconnect.setAttribute('data-flash-preconnect', '')
+            target.appendChild(linkPreconnect)
+
+            const linkDns = document.createElement('link')
+            linkDns.rel = 'dns-prefetch'
+            linkDns.href = origin
+            linkDns.setAttribute('data-flash-dns', '')
+            target.appendChild(linkDns)
+        } catch {}
+    }
+}
+
+function prewarmSubresources(htmlText, config = getConfig()) {
+    const assets = extractSubresources(htmlText)
+    const loc = typeof location !== 'undefined' ? location : null
     assets.forEach((assetUrl) => {
         try {
-            fetch(assetUrl, { priority: 'low', mode: 'no-cors' }).catch(() => {})
+            const parsed = new URL(assetUrl, loc ? loc.href : undefined)
+            if (['http:', 'https:'].includes(parsed.protocol)) {
+                fetch(assetUrl, { priority: 'low', mode: 'no-cors' }).catch(() => {})
+            }
         } catch {}
     })
+
+    if (config.preconnectCdn) {
+        const origins = extractExternalOrigins(htmlText)
+        if (origins.length > 0) {
+            preconnectOrigins(origins)
+        }
+    }
 }
 
 let _hudElement = null
@@ -1078,7 +1406,7 @@ function updateHUD() {
 
     _hudElement.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:4px">
-      <span style="font-weight:bold;color:#38bdf8">⚡ Flash Page v1.0.4</span>
+      <span style="font-weight:bold;color:#38bdf8">⚡ Flash Page v1.2.0</span>
       <span id="flash-hud-close" style="cursor:pointer;color:#94a3b8;font-size:13px;padding:2px 4px">✕</span>
     </div>
     <div>Engine: <span style="color:#f1f5f9">${engine}</span></div>
@@ -1101,7 +1429,7 @@ function highlightPreloadedAnchor(url) {
         const urlObj = new URL(url, loc ? loc.href : undefined)
         const anchors = document.querySelectorAll('a')
         anchors.forEach(a => {
-            const aHref = a.href || a.getAttribute('href')
+            const aHref = getAnchorHref(a)
             if (!aHref) return
             try {
                 const aUrl = new URL(aHref, loc ? loc.href : undefined)
@@ -1135,7 +1463,11 @@ function initTelemetry() {
     try {
         const saved = sessionStorage.getItem('flash_preloads')
         if (saved) {
-            const records = JSON.parse(saved)
+            let records = []
+            try {
+                const parsed = JSON.parse(saved)
+                if (Array.isArray(parsed)) records = parsed
+            } catch {}
             const hit = records.find(r => {
                 if (!r || !r.url) return false
                 if (r.url === currentUrl) return true
@@ -1148,12 +1480,24 @@ function initTelemetry() {
                 }
             })
 
+            const wasPrerendered = Boolean(
+                (nav && typeof nav.activationStart === 'number' && nav.activationStart > 0) ||
+                (typeof document !== 'undefined' && document.prerendering === false && nav && nav.activationStart > 0)
+            )
+            const activationStart = nav && typeof nav.activationStart === 'number' ? Math.round(nav.activationStart) : 0
+            const lcpSavedMs = wasPrerendered
+                ? Math.max(250, Math.round(nav.duration || 300))
+                : (hit ? 150 : 0)
+
             const metric = {
                 url: currentUrl,
                 converted: Boolean(hit),
                 transferSize: nav.transferSize || 0,
                 duration: Math.round(nav.duration || 0),
                 timestamp: Date.now(),
+                wasPrerendered,
+                activationStart,
+                lcpSavedMs,
             }
 
             _metricsHistory.push(metric)
@@ -1162,6 +1506,8 @@ function initTelemetry() {
             if (typeof config.onMetric === 'function') {
                 config.onMetric(metric)
             }
+
+            dispatchExporters(metric, config)
 
             if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
                 try {
@@ -1173,10 +1519,57 @@ function initTelemetry() {
     } catch {}
 }
 
+function dispatchExporters(metric, config = getConfig()) {
+    if (!metric) return
+
+    if (config.beaconUrl && typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+        try {
+            const loc = typeof location !== 'undefined' ? location.href : undefined
+            const parsed = new URL(config.beaconUrl, loc)
+            if (['http:', 'https:'].includes(parsed.protocol)) {
+                navigator.sendBeacon(config.beaconUrl, JSON.stringify(metric))
+            }
+        } catch {}
+    }
+
+    if (typeof config.analytics === 'function') {
+        try { config.analytics(metric) } catch {}
+    } else if (config.analytics === 'ga4' && typeof window !== 'undefined' && typeof window.gtag === 'function') {
+        try {
+            window.gtag('event', 'flash_navigation', {
+                page_location: metric.url,
+                converted: metric.converted,
+                was_prerendered: metric.wasPrerendered,
+                lcp_saved_ms: metric.lcpSavedMs,
+                value: metric.lcpSavedMs,
+            })
+        } catch {}
+    } else if (config.analytics === 'datadog' && typeof window !== 'undefined' && window.DD_RUM && typeof window.DD_RUM.addAction === 'function') {
+        try {
+            window.DD_RUM.addAction('flash_navigation', metric)
+        } catch {}
+    } else if (config.analytics === 'sentry' && typeof window !== 'undefined' && window.Sentry && typeof window.Sentry.addBreadcrumb === 'function') {
+        try {
+            window.Sentry.addBreadcrumb({
+                category: 'flash.navigation',
+                message: `Flash navigation: ${metric.url} (prerendered: ${metric.wasPrerendered})`,
+                data: metric,
+                level: 'info'
+            })
+        } catch {}
+    }
+}
+
 function recordInitiatedPreload(url) {
     try {
         const raw = sessionStorage.getItem('flash_preloads')
-        const list = raw ? JSON.parse(raw) : []
+        let list = []
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw)
+                if (Array.isArray(parsed)) list = parsed
+            } catch {}
+        }
         list.push({ url, time: Date.now() })
         if (list.length > 20) list.shift()
         sessionStorage.setItem('flash_preloads', JSON.stringify(list))
@@ -1184,7 +1577,9 @@ function recordInitiatedPreload(url) {
 }
 
 /**
- * React hook for Flash Page integration
+ * React & Next.js hook for Flash Page integration
+ * Provides full access to all Flash Page capabilities, status, and telemetry.
+ * @param {Partial<import('../flashpage.d.ts').FlashPageConfig>} [config]
  */
 function useFlashPage(config = {}) {
     if (typeof window !== 'undefined') {
@@ -1192,21 +1587,211 @@ function useFlashPage(config = {}) {
     }
     return {
         preload,
-        status: status(),
-        getMetrics: getMetrics(),
+        destroy,
+        get status() { return status() },
+        getStatus: status,
+        getMetrics,
+        toggleHUD,
+        isPreloadable,
+        isUrlPreloadable,
+        predictNextLink,
+        preconnectOrigins,
+        isServerHealthy,
+        isEnvironmentEligible,
+        setBackpressure,
+        get config() { return getConfig() },
     }
 }
 
 /**
+ * React FlashLink Component Factory / Helper
+ * Compatible with React, Preact, and Next.js
+ */
+function createFlashLink(React) {
+    if (!React || typeof React.createElement !== 'function') return null
+
+    const FlashLinkComponent = (props, ref) => {
+        const {
+            href,
+            priority = 'auto',
+            asPrerender = false,
+            noFlash = false,
+            onPointerOver,
+            onPointerDown,
+            children,
+            ...rest
+        } = props
+
+        const handlePointerOver = (e) => {
+            if (href && !noFlash) preload(href, priority)
+            if (typeof onPointerOver === 'function') onPointerOver(e)
+        }
+
+        const handlePointerDown = (e) => {
+            if (href && !noFlash) preload(href, 'high')
+            if (typeof onPointerDown === 'function') onPointerDown(e)
+        }
+
+        const linkProps = {
+            ...rest,
+            ref,
+            href,
+            onPointerOver: handlePointerOver,
+            onPointerDown: handlePointerDown,
+        }
+
+        if (asPrerender) {
+            linkProps['data-flash-specrules'] = 'prerender'
+        }
+        if (priority === 'high') {
+            linkProps['data-flash-priority'] = 'high'
+        }
+        if (noFlash) {
+            linkProps['data-no-flash'] = ''
+        }
+
+        return React.createElement('a', linkProps, children)
+    }
+
+    return typeof React.forwardRef === 'function'
+        ? React.forwardRef(FlashLinkComponent)
+        : FlashLinkComponent
+}
+
+/**
+ * Standalone React component (created with global React if available)
+ */
+const FlashLink = typeof window !== 'undefined' && window.React
+    ? createFlashLink(window.React)
+    : null
+
+/**
  * Vue 3 directive for Flash Page
+ * Supports v-flash, v-flash:high, v-flash:low, v-flash:prerender, v-flash:no,
+ * and modifiers: v-flash.prerender, v-flash.high, v-flash.noFlash
  */
 const vFlash = {
     mounted(el, binding) {
-        if (binding && binding.value) {
-            preload(binding.value, 'high')
-        } else if (el.href) {
+        setupVueElement(el, binding)
+    },
+    updated(el, binding) {
+        setupVueElement(el, binding)
+    }
+}
+
+function setupVueElement(el, binding) {
+    if (!el) return
+    const hasSetAttr = typeof el.setAttribute === 'function'
+    const modifiers = (binding && binding.modifiers) || {}
+    const arg = (binding && binding.arg) || ''
+
+    if (modifiers.noFlash || arg === 'no-flash' || arg === 'no') {
+        if (hasSetAttr) el.setAttribute('data-no-flash', '')
+        return
+    }
+
+    const isHigh = Boolean(modifiers.high || arg === 'high')
+    const isLow = Boolean(modifiers.low || arg === 'low')
+    const priority = isHigh ? 'high' : isLow ? 'low' : 'auto'
+
+    const targetUrl = binding && typeof binding.value === 'string'
+        ? binding.value
+        : getAnchorHref(el)
+
+    if (hasSetAttr) {
+        if (modifiers.prerender || arg === 'prerender') {
+            el.setAttribute('data-flash-specrules', 'prerender')
+        } else {
             el.setAttribute('data-flash', '')
         }
+
+        if (isHigh) {
+            el.setAttribute('data-flash-priority', 'high')
+        }
+    }
+
+    if (targetUrl && binding && binding.value) {
+        preload(targetUrl, priority)
+    }
+}
+
+/**
+ * Vue 3 & Nuxt 3 composable
+ */
+function useFlash(config = {}) {
+    return useFlashPage(config)
+}
+
+/**
+ * Svelte 5 action for use:flashAction
+ * Usage: <a href="/shop" use:flashAction={{ priority: 'high', prerender: true }}>Shop</a>
+ */
+function flashAction(node, options = {}) {
+    if (!node) return {}
+
+    const isExcluded = () => Boolean(options && (options.noFlash || options.exclude))
+    const getTarget = () => (options && options.href) || getAnchorHref(node)
+    const getPrio = () => (options && options.priority) || 'auto'
+
+    const setupAttributes = () => {
+        if (!node || typeof node.setAttribute !== 'function') return
+        if (isExcluded()) {
+            node.setAttribute('data-no-flash', '')
+        } else {
+            if (options && options.prerender) {
+                node.setAttribute('data-flash-specrules', 'prerender')
+            }
+            if (options && options.priority === 'high') {
+                node.setAttribute('data-flash-priority', 'high')
+            }
+        }
+    }
+
+    setupAttributes()
+
+    const onHover = () => {
+        if (isExcluded()) return
+        const url = getTarget()
+        if (url) preload(url, getPrio())
+    }
+
+    const onDown = () => {
+        if (isExcluded()) return
+        const url = getTarget()
+        if (url) preload(url, 'high')
+    }
+
+    node.addEventListener('pointerover', onHover, { passive: true })
+    node.addEventListener('pointerdown', onDown, { passive: true })
+
+    return {
+        update(newOptions) {
+            options = newOptions || {}
+            setupAttributes()
+        },
+        destroy() {
+            node.removeEventListener('pointerover', onHover)
+            node.removeEventListener('pointerdown', onDown)
+        }
+    }
+}
+
+/**
+ * Astro View Transitions Adapter
+ * Automatically initializes and synchronizes Flash Page across Astro page swaps
+ */
+function setupAstroTransitions(config = {}) {
+    if (typeof document === 'undefined') return () => {}
+
+    const onPageLoad = () => {
+        destroy()
+        init(config)
+    }
+
+    document.addEventListener('astro:page-load', onPageLoad)
+
+    return () => {
+        document.removeEventListener('astro:page-load', onPageLoad)
     }
 }
 
@@ -1216,6 +1801,7 @@ let _abortController = null
 // Re-export public APIs
 export {
     isPreloadable,
+    isUrlPreloadable,
     getAnchorHref,
     isServerHealthy,
     isEnvironmentEligible,
@@ -1226,11 +1812,18 @@ export {
     setConfig,
     resetConfig,
     extractSubresources,
+    extractExternalOrigins,
+    preconnectOrigins,
     recordTransition,
     predictNextLink,
     toggleHUD,
     getMetrics,
     useFlashPage,
+    useFlash,
+    flashAction,
+    setupAstroTransitions,
+    createFlashLink,
+    FlashLink,
     vFlash,
 }
 
@@ -1248,11 +1841,17 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
  * @param {Partial<import('../flashpage.d.ts').FlashPageConfig>} [customConfig]
  */
 export function init(customConfig = {}) {
-    if (_isInitialized) return
+    if (_isInitialized) {
+        if (customConfig && typeof customConfig === 'object' && Object.keys(customConfig).length > 0) {
+            setConfig(customConfig)
+        }
+        return
+    }
 
-    // Merge dataset attributes from document.body if in DOM
+    // Merge dataset attributes from document.body/currentScript and global window.flashPageConfig
     const datasetConfig = typeof document !== 'undefined' ? parseDatasetConfig() : {}
-    setConfig({ ...datasetConfig, ...customConfig })
+    const globalConfig = (typeof window !== 'undefined' && window.flashPageConfig && typeof window.flashPageConfig === 'object') ? window.flashPageConfig : {}
+    setConfig({ ...datasetConfig, ...globalConfig, ...customConfig })
 
     if (typeof window === 'undefined' || typeof document === 'undefined') return
 
@@ -1266,6 +1865,7 @@ export function init(customConfig = {}) {
     const { signal } = _abortController
 
     setupEngine()
+    isolateHeatmaps()
     setupEventListeners(signal, onPreloadRequest, toggleHUD)
     setupViewportAndDynamicObserver(signal, onPreloadRequest)
     initTelemetry()
@@ -1288,7 +1888,10 @@ export function init(customConfig = {}) {
         toggleHUD,
         recordTransition,
         predictNextLink,
-        config,
+        isPreloadable,
+        isUrlPreloadable,
+        isServerHealthy,
+        get config() { return getConfig() },
     }
 
     if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
@@ -1296,7 +1899,7 @@ export function init(customConfig = {}) {
             window.dispatchEvent(new CustomEvent('flash:ready', { detail: { status: status() } }))
         } catch {}
     }
-    logDebug('Flash Page v1.0.4 initialized with engine:', getEngine())
+    logDebug('Flash Page v1.2.0 initialized with engine:', getEngine())
 }
 
 /**
@@ -1314,6 +1917,7 @@ export function destroy() {
     resetEngine()
     resetHUD()
     resetTelemetry()
+    resetSubresources()
 
     _isInitialized = false
     resetConfig()
@@ -1328,6 +1932,7 @@ export function destroy() {
 export function preload(url, priority = 'auto') {
     if (!url || hasPreloaded(url)) return
     if (!isEnvironmentEligible()) return
+    if (!isUrlPreloadable(url)) return
 
     onPreloadRequest(url, priority)
 }
@@ -1351,6 +1956,7 @@ export function status() {
         preloadedCount: queue.preloadedCount,
         inflightCount: queue.inflightCount,
         queueLength: queue.queueLength,
+        effectiveConcurrency: queue.effectiveConcurrency,
         isHealthy: isServerHealthy(),
         backpressureUntil: getBackpressureUntil(),
         config: { ...getConfig() },

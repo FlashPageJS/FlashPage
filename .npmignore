@@ -1,6 +1,7 @@
 # Test Suites & Fixtures
 test/
 tests/
+docs/
 
 # Build Scripts & Internal Tools
 scripts/
@@ -37,4 +38,5 @@ Thumbs.db
 *.tar.gz
 *.zip
 coverage/
+dist/
 

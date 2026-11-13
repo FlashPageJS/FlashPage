@@ -318,7 +318,14 @@ const fullDatasetMock = {
     flashSubresources: '',
     flashNoMarkov: '',
     flashNoBackpressure: '',
-    flashNonce: 'test-nonce-12345'
+    flashNonce: 'test-nonce-12345',
+    flashAdaptiveConcurrency: '',
+    flashBeaconUrl: 'https://analytics.example.com/beacon',
+    flashAnalytics: 'ga4',
+    flashNoIsolateHeatmaps: '',
+    flashNoCartSafeguards: '',
+    flashNoPriorityQueue: '',
+    flashNoPreconnectCdn: ''
 }
 
 const parsedFull = parseDatasetConfig(fullDatasetMock)
@@ -340,5 +347,68 @@ assert.equal(parsedFull.subresources, true, 'Should parse flashSubresources')
 assert.equal(parsedFull.markov, false, 'Should parse flashNoMarkov')
 assert.equal(parsedFull.backpressure, false, 'Should parse flashNoBackpressure')
 assert.equal(parsedFull.nonce, 'test-nonce-12345', 'Should parse flashNonce')
+assert.equal(parsedFull.adaptiveConcurrency, true, 'Should parse flashAdaptiveConcurrency')
+assert.equal(parsedFull.beaconUrl, 'https://analytics.example.com/beacon', 'Should parse flashBeaconUrl')
+assert.equal(parsedFull.analytics, 'ga4', 'Should parse flashAnalytics')
+assert.equal(parsedFull.isolateHeatmaps, false, 'Should parse flashNoIsolateHeatmaps')
+assert.equal(parsedFull.cartSafeguards, false, 'Should parse flashNoCartSafeguards')
+assert.equal(parsedFull.priorityQueue, false, 'Should parse flashNoPriorityQueue')
+assert.equal(parsedFull.preconnectCdn, false, 'Should parse flashNoPreconnectCdn')
 
-console.log('✅ ALL EXHAUSTIVE UNIT, AI, DATASET & ADVANCED TESTS PASSED (76/76)!')
+const parsedAdaptiveNegative = parseDatasetConfig({
+    flashNoAdaptiveConcurrency: '',
+    flashCartSafeguards: '',
+    flashPriorityQueue: '',
+    flashPreconnectCdn: ''
+})
+assert.equal(parsedAdaptiveNegative.adaptiveConcurrency, false, 'Should parse flashNoAdaptiveConcurrency')
+assert.equal(parsedAdaptiveNegative.cartSafeguards, true, 'Should parse flashCartSafeguards')
+assert.equal(parsedAdaptiveNegative.priorityQueue, true, 'Should parse flashPriorityQueue')
+assert.equal(parsedAdaptiveNegative.preconnectCdn, true, 'Should parse flashPreconnectCdn')
+
+// Enhanced unquoted subresource attribute extraction
+const unquotedHtml = '<link rel=stylesheet href=/style.css><link as=font href=/font.woff2>'
+const unquotedAssets = extractSubresources(unquotedHtml)
+assert.deepEqual(unquotedAssets, ['/style.css', '/font.woff2'], 'Should extract unquoted link attributes')
+
+// Enhanced useFlashPage complete functionality verification
+const hookResult = useFlashPage()
+assert.ok(typeof hookResult.status === 'object', 'useFlashPage.status should be an object')
+assert.ok(typeof hookResult.getStatus === 'function', 'useFlashPage.getStatus should be a function')
+assert.equal(hookResult.status.initialized, hookResult.getStatus().initialized, 'Dynamic status getter should match getStatus()')
+assert.ok(typeof hookResult.preload === 'function', 'useFlashPage should export preload')
+assert.ok(typeof hookResult.destroy === 'function', 'useFlashPage should export destroy')
+assert.ok(typeof hookResult.getMetrics === 'function', 'useFlashPage should export getMetrics')
+assert.ok(typeof hookResult.toggleHUD === 'function', 'useFlashPage should export toggleHUD')
+assert.ok(typeof hookResult.isPreloadable === 'function', 'useFlashPage should export isPreloadable')
+assert.ok(typeof hookResult.isUrlPreloadable === 'function', 'useFlashPage should export isUrlPreloadable')
+assert.ok(typeof hookResult.predictNextLink === 'function', 'useFlashPage should export predictNextLink')
+assert.ok(typeof hookResult.preconnectOrigins === 'function', 'useFlashPage should export preconnectOrigins')
+assert.ok(typeof hookResult.isServerHealthy === 'function', 'useFlashPage should export isServerHealthy')
+assert.ok(typeof hookResult.isEnvironmentEligible === 'function', 'useFlashPage should export isEnvironmentEligible')
+assert.ok(typeof hookResult.setBackpressure === 'function', 'useFlashPage should export setBackpressure')
+assert.ok(typeof hookResult.config === 'object', 'useFlashPage should export config getter')
+
+// Whitelist Document Rules scoping
+import { setupDocumentSpeculationRules, resetEngine } from '../src/engines.js'
+import { setConfig, resetConfig } from '../src/config.js'
+
+let lastInjectedScript = null
+globalThis.HTMLScriptElement = { supports: () => true }
+const mockHead = {
+    appendChild: (el) => { lastInjectedScript = el },
+    removeChild: () => {}
+}
+globalThis.document = {
+    head: mockHead,
+    createElement: (tag) => ({ tagName: tag.toUpperCase(), setAttribute: () => {}, nonce: null }),
+    querySelectorAll: () => []
+}
+setConfig({ whitelist: true })
+setupDocumentSpeculationRules()
+assert.ok(lastInjectedScript, 'Speculation script should be injected')
+assert.ok(lastInjectedScript.textContent.includes('data-flash'), 'Document rules should include data-flash selector when whitelist is true')
+resetConfig()
+resetEngine()
+
+console.log('✅ ALL EXHAUSTIVE UNIT, AI, DATASET & ADVANCED TESTS PASSED!')

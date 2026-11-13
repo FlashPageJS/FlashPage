@@ -8,12 +8,34 @@ let _inflightCount = 0
 let _prefetchQueue = []
 let _listeners = []
 
+export function getEffectiveConcurrency(config = getConfig()) {
+    if (!config.adaptiveConcurrency) return config.maxConcurrent
+    if (typeof navigator !== 'undefined' && navigator.connection) {
+        const conn = navigator.connection
+        if ((typeof conn.downlink === 'number' && conn.downlink >= 10) || (typeof conn.rtt === 'number' && conn.rtt > 0 && conn.rtt < 50)) {
+            return Math.min(6, Math.max(config.maxConcurrent, config.maxConcurrent * 2))
+        }
+        if ((typeof conn.downlink === 'number' && conn.downlink < 1.5) || (typeof conn.rtt === 'number' && conn.rtt > 250)) {
+            return 1
+        }
+    }
+    return config.maxConcurrent
+}
+
+export function getPriorityWeight(priority) {
+    if (priority === 'high') return 3
+    if (priority === 'low') return 1
+    return 2 // 'auto', 'medium', or undefined
+}
+
 export function getQueueStatus() {
     return {
         preloadedCount: _preloadedUrls.size,
         inflightCount: _inflightCount,
         queueLength: _prefetchQueue.length,
         preloadedUrls: _preloadedUrls,
+        effectiveConcurrency: getEffectiveConcurrency(),
+        queue: _prefetchQueue.map(item => ({ url: item.url, priority: item.priority })),
     }
 }
 
@@ -38,16 +60,32 @@ export function hasPreloaded(url) {
     return _preloadedUrls.has(url)
 }
 
-export function enqueuePrefetch(url, priority, onSubresources) {
+export function enqueuePrefetch(url, priority = 'auto', onSubresources) {
     _preloadedUrls.add(url)
-    _prefetchQueue.push({ url, priority, onSubresources })
+    const config = getConfig()
+    const weight = getPriorityWeight(priority)
+    const item = { url, priority, onSubresources, weight, timestamp: Date.now() }
+
+    if (config.priorityQueue) {
+        // Insert before the first item with less-or-equal weight (priority order + LIFO within tier)
+        const idx = _prefetchQueue.findIndex(q => q.weight <= weight)
+        if (idx === -1) {
+            _prefetchQueue.push(item)
+        } else {
+            _prefetchQueue.splice(idx, 0, item)
+        }
+    } else {
+        _prefetchQueue.push(item)
+    }
+
     notifyListeners()
     processQueue()
 }
 
 export function processQueue() {
     const config = getConfig()
-    while (_inflightCount < config.maxConcurrent && _prefetchQueue.length > 0) {
+    const limit = getEffectiveConcurrency(config)
+    while (_inflightCount < limit && _prefetchQueue.length > 0) {
         const { url, priority, onSubresources } = _prefetchQueue.shift()
         _inflightCount++
         notifyListeners()

@@ -85,7 +85,8 @@ export function setupEventListeners(signal, onPreloadRequest, onToggleHUD) {
         const anchor = findAnchorFromEvent(event)
         if (isPreloadable(anchor)) {
             const href = getAnchorHref(anchor)
-            if (href) onPreloadRequest(href, 'high')
+            const prio = (anchor && anchor.dataset && anchor.dataset.flashPriority) || 'high'
+            if (href) onPreloadRequest(href, prio)
         }
     }, { capture: true, passive: true, signal })
 
@@ -112,7 +113,7 @@ export function setupEventListeners(signal, onPreloadRequest, onToggleHUD) {
                 _currentHoverAnchor = null
                 anchor.removeEventListener('pointerout', onLeave)
             }
-            anchor.addEventListener('pointerout', onLeave, { passive: true })
+            anchor.addEventListener('pointerout', onLeave, signal ? { passive: true, signal } : { passive: true })
 
             if (isMousedown) return
 
@@ -129,7 +130,8 @@ export function setupEventListeners(signal, onPreloadRequest, onToggleHUD) {
 
             _hoverTimer = setTimeout(() => {
                 const href = getAnchorHref(anchor)
-                if (href) onPreloadRequest(href, 'high')
+                const prio = (anchor && anchor.dataset && anchor.dataset.flashPriority) || 'high'
+                if (href) onPreloadRequest(href, prio)
                 _hoverTimer = null
             }, delay)
         }, { capture: true, passive: true, signal })
@@ -187,7 +189,7 @@ function onPointerMoveTrajectory(event, onPreloadRequest) {
 
     for (const pt of testPoints) {
         if (pt.x < 0 || pt.x > window.innerWidth || pt.y < 0 || pt.y > window.innerHeight) continue
-        const element = document.elementFromPoint(pt.x, pt.y)
+        const element = typeof document.elementFromPoint === 'function' ? document.elementFromPoint(pt.x, pt.y) : null
         const anchor = element && element.closest ? element.closest('a') : null
         if (isPreloadable(anchor)) {
             const href = getAnchorHref(anchor)

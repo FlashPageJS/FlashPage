@@ -45,6 +45,7 @@ tmp/
 *.tgz
 *.tar.gz
 *.zip
+dist/
 
 # Coverage & Test Output
 coverage/

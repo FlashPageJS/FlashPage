@@ -1,6 +1,6 @@
 {
   "name": "flash-page",
-  "version": "1.0.4",
+  "version": "1.2.0",
   "description": "Smart prefetching and Speculation Rules manager with cursor trajectory prediction and server backpressure protection.",
   "type": "module",
   "main": "./flashpage.js",
@@ -29,6 +29,7 @@
     "flashpage.d.ts",
     "flashpage.lite.d.ts",
     "src",
+    "integrations",
     "LICENSE",
     "README.md",
     "Changelog.txt"
@@ -46,12 +47,14 @@
   "homepage": "https://github.com/FlashPageJS/FlashPage#readme",
   "scripts": {
     "build": "node ./scripts/build.js",
+    "build:wp": "node ./scripts/build.js",
     "minify": "node ./scripts/build.js",
-    "test": "node ./test/comprehensiveTests.js && node ./test/masterParametersTests.js && node ./test/unitTests.js && node ./test/bundleTests.js && node ./test/securityTests.js",
+    "test": "node ./test/comprehensiveTests.js && node ./test/masterParametersTests.js && node ./test/unitTests.js && node ./test/bundleTests.js && node ./test/securityTests.js && node ./test/worstConditionAudit.js",
     "test:matrix": "node ./test/masterParametersTests.js",
     "test:unit": "node ./test/unitTests.js",
     "test:bundles": "node ./test/bundleTests.js",
     "test:security": "node ./test/securityTests.js",
+    "test:worst": "node ./test/worstConditionAudit.js",
     "test:server": "node ./test/index.js 8085",
     "test:live": "node ./test/index.js 8085",
     "check": "node --check flashpage.js flashpage.min.js flashpage.lite.js flashpage.lite.min.js && find src test scripts -name '*.js' -exec node --check {} +",

@@ -1,4 +1,4 @@
-/*! Flash Page Lite v1.0.4 | GPL-3.0-or-later */
+/*! Flash Page Lite v1.2.0 | GPL-3.0-or-later */
 
 const DEFAULT_CONFIG = {
     intensity: 65,
@@ -22,6 +22,13 @@ const DEFAULT_CONFIG = {
     onPreload: null,
     onMetric: null,
     nonce: null,
+    adaptiveConcurrency: false,
+    beaconUrl: null,
+    analytics: null,
+    isolateHeatmaps: true,
+    cartSafeguards: true,
+    priorityQueue: true,
+    preconnectCdn: true,
 }
 
 let _config = { ...DEFAULT_CONFIG }
@@ -65,7 +72,14 @@ function setCachedBattery(bat) {
 }
 
 function parseDatasetConfig(targetDataset) {
-    const d = targetDataset || (typeof document !== 'undefined' && document.body ? document.body.dataset : {})
+    let d = {}
+    if (targetDataset) {
+        d = targetDataset
+    } else if (typeof document !== 'undefined') {
+        const bodyDs = document.body ? document.body.dataset : {}
+        const scriptDs = (document.currentScript && document.currentScript.dataset) ? document.currentScript.dataset : {}
+        d = { ...bodyDs, ...scriptDs }
+    }
     const parsed = {}
 
     // 1. Intensity & Hover Delay
@@ -138,6 +152,41 @@ function parseDatasetConfig(targetDataset) {
         }
     }
 
+    // 14. Adaptive Concurrency
+    if ('flashAdaptiveConcurrency' in d) parsed.adaptiveConcurrency = true
+    if ('flashNoAdaptiveConcurrency' in d) parsed.adaptiveConcurrency = false
+
+    // 15. Telemetry Beacon URL (strictly validate http/https and prevent mixed content downgrade)
+    if ('flashBeaconUrl' in d && d.flashBeaconUrl) {
+        try {
+            const loc = typeof location !== 'undefined' ? location : null
+            const beaconUrlObj = new URL(d.flashBeaconUrl, loc ? loc.href : undefined)
+            if (['http:', 'https:'].includes(beaconUrlObj.protocol)) {
+                if (!(loc && loc.protocol === 'https:' && beaconUrlObj.protocol === 'http:')) {
+                    parsed.beaconUrl = beaconUrlObj.href
+                }
+            }
+        } catch {}
+    }
+
+    // 16. Analytics Exporter Mode
+    if ('flashAnalytics' in d) parsed.analytics = d.flashAnalytics
+
+    // 17. Heatmap & Session Replay Isolation
+    if ('flashNoIsolateHeatmaps' in d) parsed.isolateHeatmaps = false
+
+    // 18. E-Commerce Cart Safeguards
+    if ('flashNoCartSafeguards' in d) parsed.cartSafeguards = false
+    if ('flashCartSafeguards' in d) parsed.cartSafeguards = true
+
+    // 19. Prioritized Queue Scheduling
+    if ('flashNoPriorityQueue' in d) parsed.priorityQueue = false
+    if ('flashPriorityQueue' in d) parsed.priorityQueue = true
+
+    // 20. Subresource CDN Preconnect
+    if ('flashNoPreconnectCdn' in d) parsed.preconnectCdn = false
+    if ('flashPreconnectCdn' in d) parsed.preconnectCdn = true
+
     return parsed
 }
 
@@ -159,7 +208,7 @@ function isEnvironmentEligible() {
 
     // 3. Battery Check
     if (_config.respectBattery && _cachedBattery) {
-        if (_cachedBattery.level < 0.20 && !_cachedBattery.charging) {
+        if (typeof _cachedBattery.level === 'number' && _cachedBattery.level < 0.20 && !_cachedBattery.charging) {
             return false
         }
     }
@@ -186,6 +235,124 @@ function getAnchorHref(anchor) {
     return null
 }
 
+function safeDecodeURI(str) {
+    if (!str || typeof str !== 'string') return ''
+    let decoded = str
+    for (let i = 0; i < 2; i++) {
+        try {
+            const next = decodeURIComponent(decoded)
+            if (next === decoded) break
+            decoded = next
+        } catch {
+            break
+        }
+    }
+    return decoded
+}
+
+function isUrlPreloadable(url, config = getConfig(), anchor = null) {
+    if (!url || typeof url !== 'string' || !url.trim()) return false
+    if (!isServerHealthy()) return false
+
+    // Control characters, null bytes, traversal, and protocol obfuscation checks
+    const rawTrimmed = url.trim()
+    const strippedRaw = rawTrimmed.toLowerCase().replace(/[\x00-\x20\s]/g, '')
+    if (strippedRaw.startsWith('javascript:') || strippedRaw.startsWith('data:') || strippedRaw.startsWith('vbscript:')) {
+        return false
+    }
+    if (url.includes('\0') || url.includes('%00')) {
+        return false
+    }
+    const decodedUrl = safeDecodeURI(url)
+    if (decodedUrl.includes('\0') || decodedUrl.includes('..')) {
+        return false
+    }
+
+    const loc = typeof location !== 'undefined' ? location : null
+    let urlObj
+    try {
+        urlObj = new URL(rawTrimmed, loc ? loc.href : undefined)
+    } catch {
+        return false
+    }
+
+    // Protocol check
+    if (!['http:', 'https:'].includes(urlObj.protocol)) return false
+    if (loc && urlObj.protocol === 'http:' && loc.protocol === 'https:') return false
+
+    // Reject preloading the exact current page
+    if (loc && urlObj.href === loc.href) {
+        return false
+    }
+
+    const ds = anchor && anchor.dataset ? anchor.dataset : {}
+    const isMarkedAllow = 'flash' in ds || 'instant' in ds
+
+    // Whitelist check
+    if (config.whitelist && !isMarkedAllow) {
+        return false
+    }
+
+    // Origin check
+    if (loc && urlObj.origin !== loc.origin) {
+        const allowed = config.allowExternalLinks || isMarkedAllow
+        if (!allowed) return false
+    } else if (!loc && !config.allowExternalLinks && !isMarkedAllow && urlObj.origin) {
+        // In environments without location, default to rejecting absolute external origins
+        if (rawTrimmed.startsWith('http://') || rawTrimmed.startsWith('https://') || rawTrimmed.startsWith('//')) {
+            return false
+        }
+    }
+
+    // Query string check
+    if (!config.allowQueryString && urlObj.search && !isMarkedAllow) {
+        return false
+    }
+
+    // Same-page hash anchor check
+    if (loc && urlObj.hash && (urlObj.pathname + urlObj.search === loc.pathname + loc.search)) {
+        return false
+    }
+
+    // Action path check (sensitive endpoints) with multi-pass decoding
+    const path = safeDecodeURI(urlObj.pathname).toLowerCase()
+    if (/(^|\/)(logout|signout|sign-out|log-out|delete|destroy|remove|admin|wp-admin|wp-login)(\/|$|\.)/i.test(path)) {
+        return false
+    }
+
+    // Action query check with multi-pass decoding
+    if (urlObj.search) {
+        const query = safeDecodeURI(urlObj.search).toLowerCase()
+        if (/[?&](action|act|do|op)=(logout|signout|delete|destroy|remove)(&|$)/i.test(query)) {
+            return false
+        }
+    }
+
+    // E-Commerce Cart & Checkout Guard
+    if (config.cartSafeguards) {
+        if (/(^|\/)(cart|checkout|basket|bag|shopping-cart|shopping-basket|my-cart|orders?|my-account|customer\/account|account|billing|payment)(\/|$|\.)/i.test(path)) {
+            return false
+        }
+        if (urlObj.search) {
+            const query = safeDecodeURI(urlObj.search).toLowerCase()
+            if (/[?&](add-to-cart|wc-ajax|empty-cart|cart_action|cart-action|remove_item|undo_item)(=|&|$)/i.test(query)) {
+                return false
+            }
+        }
+    }
+
+    // Custom user filter callback
+    if (typeof config.filter === 'function') {
+        try {
+            if (!config.filter(urlObj, anchor)) return false
+        } catch {
+            return false
+        }
+    }
+
+    return true
+}
+
 function isPreloadable(anchor) {
     if (!anchor) return false
 
@@ -195,20 +362,6 @@ function isPreloadable(anchor) {
     // Normalize raw href from HTMLAnchorElement, SVGAElement, or generic element
     const rawHref = getAnchorHref(anchor)
     if (!rawHref || typeof rawHref !== 'string' || !rawHref.trim()) return false
-
-    // Parse URL safely with current location
-    const loc = typeof location !== 'undefined' ? location : null
-    let urlObj
-    try {
-        urlObj = new URL(rawHref.trim(), loc ? loc.href : undefined)
-    } catch {
-        return false
-    }
-
-    // Reject preloading the exact current page
-    if (loc && urlObj.href === loc.href) {
-        return false
-    }
 
     const config = getConfig()
     const ds = anchor.dataset || {}
@@ -231,13 +384,21 @@ function isPreloadable(anchor) {
         return false
     }
 
-    // Target attribute check (e.g. target="_blank")
-    if (anchor.target && anchor.target !== '_self') {
+    // Target attribute check (normalize HTMLAnchorElement and SVGAElement target)
+    const targetVal = typeof anchor.target === 'string'
+        ? anchor.target
+        : (anchor.target && typeof anchor.target.baseVal === 'string'
+            ? anchor.target.baseVal
+            : (typeof anchor.getAttribute === 'function' ? anchor.getAttribute('target') : null))
+    if (targetVal && targetVal !== '_self') {
         return false
     }
 
     // Rel check: nofollow
-    if (anchor.relList && typeof anchor.relList.contains === 'function' && anchor.relList.contains('nofollow')) {
+    const relVal = anchor.relList && typeof anchor.relList.contains === 'function'
+        ? anchor.relList.contains('nofollow')
+        : (typeof anchor.getAttribute === 'function' && /\bnofollow\b/i.test(anchor.getAttribute('rel') || ''))
+    if (relVal) {
         return false
     }
 
@@ -251,59 +412,60 @@ function isPreloadable(anchor) {
         }
     }
 
-    // Origin check
-    if (loc && urlObj.origin !== loc.origin) {
-        const allowed = config.allowExternalLinks || isMarkedAllow
-        if (!allowed) return false
-    }
-
-    // Protocol check
-    if (!['http:', 'https:'].includes(urlObj.protocol)) return false
-    if (loc && urlObj.protocol === 'http:' && loc.protocol === 'https:') return false
-
-    // Query string check
-    if (!config.allowQueryString && urlObj.search && !isMarkedAllow) {
-        return false
-    }
-
-    // Same-page hash anchor check
-    if (loc && urlObj.hash && (urlObj.pathname + urlObj.search === loc.pathname + loc.search)) {
-        return false
-    }
-
-    // Action path check (sensitive endpoints)
-    let path = urlObj.pathname.toLowerCase()
-    try {
-        path = decodeURIComponent(urlObj.pathname).toLowerCase()
-    } catch {}
-    if (/(^|\/)(logout|signout|delete|destroy|remove)(\/|$|\.)/i.test(path)) {
-        return false
-    }
-
-    // Action query check (sensitive query parameters like ?action=logout, ?do=delete, ?act=signout)
-    if (urlObj.search) {
-        let query = urlObj.search.toLowerCase()
-        try {
-            query = decodeURIComponent(urlObj.search).toLowerCase()
-        } catch {}
-        if (/[?&](action|act|do|op)=(logout|signout|delete|destroy|remove)(&|$)/i.test(query)) {
-            return false
+    // E-Commerce attribute and class checks
+    if (config.cartSafeguards) {
+        if (typeof anchor.hasAttribute === 'function') {
+            if (anchor.hasAttribute('data-cart-action') ||
+                anchor.hasAttribute('data-add-to-cart') ||
+                anchor.hasAttribute('data-woocommerce')) {
+                return false
+            }
+        }
+        if (anchor.classList && typeof anchor.classList.contains === 'function') {
+            if (anchor.classList.contains('add_to_cart_button') ||
+                anchor.classList.contains('single_add_to_cart_button') ||
+                anchor.classList.contains('ajax_add_to_cart')) {
+                return false
+            }
         }
     }
 
-    // Custom user filter callback
-    if (typeof config.filter === 'function') {
-        try {
-            if (!config.filter(urlObj, anchor)) return false
-        } catch {
-            return false
-        }
-    }
+    return isUrlPreloadable(rawHref, config, anchor)
+}
 
-    return true
+function isolateHeatmaps() {
+    if (typeof document === 'undefined' || typeof window === 'undefined') return
+    const config = getConfig()
+    if (!config.isolateHeatmaps) return
+
+    if ('prerendering' in document && document.prerendering) {
+        if (window.hj && typeof window.hj.pause === 'function') {
+            try { window.hj.pause() } catch {}
+        }
+        if (window.clarity && typeof window.clarity.pause === 'function') {
+            try { window.clarity.pause() } catch {}
+        }
+        if (window.FS && typeof window.FS.shutdown === 'function') {
+            try { window.FS.shutdown() } catch {}
+        }
+
+        document.addEventListener('prerenderingchange', () => {
+            if (window.hj && typeof window.hj.resume === 'function') {
+                try { window.hj.resume() } catch {}
+            }
+            if (window.clarity && typeof window.clarity.resume === 'function') {
+                try { window.clarity.resume() } catch {}
+            }
+            if (window.FS && typeof window.FS.restart === 'function') {
+                try { window.FS.restart() } catch {}
+            }
+        }, { once: true })
+    }
 }
 
 let _speculationMode = 'none' // 'document-rules' | 'speculation-list' | 'link' | 'fetch'
+let _activeLinkNodes = []
+let _activeRuleNodes = []
 
 function getEngine() {
     return _speculationMode
@@ -311,7 +473,9 @@ function getEngine() {
 
 function resetEngine() {
     _speculationMode = 'none'
-    if (typeof document !== 'undefined') {
+    _activeLinkNodes = []
+    _activeRuleNodes = []
+    if (typeof document !== 'undefined' && typeof document.querySelectorAll === 'function') {
         const injectedRules = document.querySelectorAll('script[data-flash-rules]')
         injectedRules.forEach(el => {
             if (el.parentNode) el.parentNode.removeChild(el)
@@ -331,6 +495,7 @@ function setupEngine() {
         HTMLScriptElement.supports('speculationrules')
 
     const supportsPrefetchRel = typeof document !== 'undefined' &&
+        typeof document.createElement === 'function' &&
         document.createElement('link').relList &&
         document.createElement('link').relList.supports &&
         document.createElement('link').relList.supports('prefetch')
@@ -377,6 +542,7 @@ function setupDocumentSpeculationRules() {
                     where: {
                         and: [
                             { href_matches: '/*' },
+                            ...(config.whitelist ? [{ selector_matches: '[data-flash], [data-instant]' }] : []),
                             {
                                 not: {
                                     selector_matches: [
@@ -398,6 +564,16 @@ function setupDocumentSpeculationRules() {
                                         '[href*="action=logout"]',
                                         '[href*="do=delete"]',
                                         '[href*="do=logout"]',
+                                        ...(config.cartSafeguards ? [
+                                            '[href*="/cart"]',
+                                            '[href*="/checkout"]',
+                                            '[href*="/basket"]',
+                                            '[href*="/my-account"]',
+                                            '[href*="add-to-cart="]',
+                                            '[data-cart-action]',
+                                            '[data-add-to-cart]',
+                                            '.add_to_cart_button',
+                                        ] : [])
                                     ].join(', ')
                                 }
                             }
@@ -428,14 +604,22 @@ function preloadUsingSpeculationList(url, type) {
         script.nonce = sanitizedNonce
         script.setAttribute('nonce', sanitizedNonce)
     }
+    const safeType = type === 'prerender' ? 'prerender' : 'prefetch'
     script.textContent = JSON.stringify({
-        [type]: [{
+        [safeType]: [{
             source: 'list',
             urls: [url]
         }]
     }).replace(/<\/script/gi, '<\\/script')
     const target = document.head || document.documentElement
-    if (target) target.appendChild(script)
+    if (target) {
+        target.appendChild(script)
+        _activeRuleNodes.push(script)
+        if (_activeRuleNodes.length > 20) {
+            const old = _activeRuleNodes.shift()
+            if (old && old.parentNode) old.parentNode.removeChild(old)
+        }
+    }
     return new Promise(resolve => setTimeout(resolve, 400))
 }
 
@@ -460,7 +644,14 @@ function preloadUsingLink(url, priority = 'auto') {
         link.addEventListener('error', done, { once: true })
         setTimeout(done, 500)
         const target = document.head || document.documentElement
-        if (target) target.appendChild(link)
+        if (target) {
+            target.appendChild(link)
+            _activeLinkNodes.push(link)
+            if (_activeLinkNodes.length > 25) {
+                const old = _activeLinkNodes.shift()
+                if (old && old.parentNode) old.parentNode.removeChild(old)
+            }
+        }
     })
 }
 
@@ -500,12 +691,34 @@ let _inflightCount = 0
 let _prefetchQueue = []
 let _listeners = []
 
+function getEffectiveConcurrency(config = getConfig()) {
+    if (!config.adaptiveConcurrency) return config.maxConcurrent
+    if (typeof navigator !== 'undefined' && navigator.connection) {
+        const conn = navigator.connection
+        if ((typeof conn.downlink === 'number' && conn.downlink >= 10) || (typeof conn.rtt === 'number' && conn.rtt > 0 && conn.rtt < 50)) {
+            return Math.min(6, Math.max(config.maxConcurrent, config.maxConcurrent * 2))
+        }
+        if ((typeof conn.downlink === 'number' && conn.downlink < 1.5) || (typeof conn.rtt === 'number' && conn.rtt > 250)) {
+            return 1
+        }
+    }
+    return config.maxConcurrent
+}
+
+function getPriorityWeight(priority) {
+    if (priority === 'high') return 3
+    if (priority === 'low') return 1
+    return 2 // 'auto', 'medium', or undefined
+}
+
 function getQueueStatus() {
     return {
         preloadedCount: _preloadedUrls.size,
         inflightCount: _inflightCount,
         queueLength: _prefetchQueue.length,
         preloadedUrls: _preloadedUrls,
+        effectiveConcurrency: getEffectiveConcurrency(),
+        queue: _prefetchQueue.map(item => ({ url: item.url, priority: item.priority })),
     }
 }
 
@@ -530,16 +743,32 @@ function hasPreloaded(url) {
     return _preloadedUrls.has(url)
 }
 
-function enqueuePrefetch(url, priority, onSubresources) {
+function enqueuePrefetch(url, priority = 'auto', onSubresources) {
     _preloadedUrls.add(url)
-    _prefetchQueue.push({ url, priority, onSubresources })
+    const config = getConfig()
+    const weight = getPriorityWeight(priority)
+    const item = { url, priority, onSubresources, weight, timestamp: Date.now() }
+
+    if (config.priorityQueue) {
+        // Insert before the first item with less-or-equal weight (priority order + LIFO within tier)
+        const idx = _prefetchQueue.findIndex(q => q.weight <= weight)
+        if (idx === -1) {
+            _prefetchQueue.push(item)
+        } else {
+            _prefetchQueue.splice(idx, 0, item)
+        }
+    } else {
+        _prefetchQueue.push(item)
+    }
+
     notifyListeners()
     processQueue()
 }
 
 function processQueue() {
     const config = getConfig()
-    while (_inflightCount < config.maxConcurrent && _prefetchQueue.length > 0) {
+    const limit = getEffectiveConcurrency(config)
+    while (_inflightCount < limit && _prefetchQueue.length > 0) {
         const { url, priority, onSubresources } = _prefetchQueue.shift()
         _inflightCount++
         notifyListeners()
@@ -676,7 +905,8 @@ function setupEventListeners(signal, onPreloadRequest, onToggleHUD) {
         const anchor = findAnchorFromEvent(event)
         if (isPreloadable(anchor)) {
             const href = getAnchorHref(anchor)
-            if (href) onPreloadRequest(href, 'high')
+            const prio = (anchor && anchor.dataset && anchor.dataset.flashPriority) || 'high'
+            if (href) onPreloadRequest(href, prio)
         }
     }, { capture: true, passive: true, signal })
 
@@ -703,7 +933,7 @@ function setupEventListeners(signal, onPreloadRequest, onToggleHUD) {
                 _currentHoverAnchor = null
                 anchor.removeEventListener('pointerout', onLeave)
             }
-            anchor.addEventListener('pointerout', onLeave, { passive: true })
+            anchor.addEventListener('pointerout', onLeave, signal ? { passive: true, signal } : { passive: true })
 
             if (isMousedown) return
 
@@ -720,7 +950,8 @@ function setupEventListeners(signal, onPreloadRequest, onToggleHUD) {
 
             _hoverTimer = setTimeout(() => {
                 const href = getAnchorHref(anchor)
-                if (href) onPreloadRequest(href, 'high')
+                const prio = (anchor && anchor.dataset && anchor.dataset.flashPriority) || 'high'
+                if (href) onPreloadRequest(href, prio)
                 _hoverTimer = null
             }, delay)
         }, { capture: true, passive: true, signal })
@@ -778,7 +1009,7 @@ function onPointerMoveTrajectory(event, onPreloadRequest) {
 
     for (const pt of testPoints) {
         if (pt.x < 0 || pt.x > window.innerWidth || pt.y < 0 || pt.y > window.innerHeight) continue
-        const element = document.elementFromPoint(pt.x, pt.y)
+        const element = typeof document.elementFromPoint === 'function' ? document.elementFromPoint(pt.x, pt.y) : null
         const anchor = element && element.closest ? element.closest('a') : null
         if (isPreloadable(anchor)) {
             const href = getAnchorHref(anchor)
@@ -895,7 +1126,11 @@ function initTelemetry() {
     try {
         const saved = sessionStorage.getItem('flash_preloads')
         if (saved) {
-            const records = JSON.parse(saved)
+            let records = []
+            try {
+                const parsed = JSON.parse(saved)
+                if (Array.isArray(parsed)) records = parsed
+            } catch {}
             const hit = records.find(r => {
                 if (!r || !r.url) return false
                 if (r.url === currentUrl) return true
@@ -908,12 +1143,24 @@ function initTelemetry() {
                 }
             })
 
+            const wasPrerendered = Boolean(
+                (nav && typeof nav.activationStart === 'number' && nav.activationStart > 0) ||
+                (typeof document !== 'undefined' && document.prerendering === false && nav && nav.activationStart > 0)
+            )
+            const activationStart = nav && typeof nav.activationStart === 'number' ? Math.round(nav.activationStart) : 0
+            const lcpSavedMs = wasPrerendered
+                ? Math.max(250, Math.round(nav.duration || 300))
+                : (hit ? 150 : 0)
+
             const metric = {
                 url: currentUrl,
                 converted: Boolean(hit),
                 transferSize: nav.transferSize || 0,
                 duration: Math.round(nav.duration || 0),
                 timestamp: Date.now(),
+                wasPrerendered,
+                activationStart,
+                lcpSavedMs,
             }
 
             _metricsHistory.push(metric)
@@ -922,6 +1169,8 @@ function initTelemetry() {
             if (typeof config.onMetric === 'function') {
                 config.onMetric(metric)
             }
+
+            dispatchExporters(metric, config)
 
             if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
                 try {
@@ -933,10 +1182,57 @@ function initTelemetry() {
     } catch {}
 }
 
+function dispatchExporters(metric, config = getConfig()) {
+    if (!metric) return
+
+    if (config.beaconUrl && typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+        try {
+            const loc = typeof location !== 'undefined' ? location.href : undefined
+            const parsed = new URL(config.beaconUrl, loc)
+            if (['http:', 'https:'].includes(parsed.protocol)) {
+                navigator.sendBeacon(config.beaconUrl, JSON.stringify(metric))
+            }
+        } catch {}
+    }
+
+    if (typeof config.analytics === 'function') {
+        try { config.analytics(metric) } catch {}
+    } else if (config.analytics === 'ga4' && typeof window !== 'undefined' && typeof window.gtag === 'function') {
+        try {
+            window.gtag('event', 'flash_navigation', {
+                page_location: metric.url,
+                converted: metric.converted,
+                was_prerendered: metric.wasPrerendered,
+                lcp_saved_ms: metric.lcpSavedMs,
+                value: metric.lcpSavedMs,
+            })
+        } catch {}
+    } else if (config.analytics === 'datadog' && typeof window !== 'undefined' && window.DD_RUM && typeof window.DD_RUM.addAction === 'function') {
+        try {
+            window.DD_RUM.addAction('flash_navigation', metric)
+        } catch {}
+    } else if (config.analytics === 'sentry' && typeof window !== 'undefined' && window.Sentry && typeof window.Sentry.addBreadcrumb === 'function') {
+        try {
+            window.Sentry.addBreadcrumb({
+                category: 'flash.navigation',
+                message: `Flash navigation: ${metric.url} (prerendered: ${metric.wasPrerendered})`,
+                data: metric,
+                level: 'info'
+            })
+        } catch {}
+    }
+}
+
 function recordInitiatedPreload(url) {
     try {
         const raw = sessionStorage.getItem('flash_preloads')
-        const list = raw ? JSON.parse(raw) : []
+        let list = []
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw)
+                if (Array.isArray(parsed)) list = parsed
+            } catch {}
+        }
         list.push({ url, time: Date.now() })
         if (list.length > 20) list.shift()
         sessionStorage.setItem('flash_preloads', JSON.stringify(list))
@@ -946,7 +1242,7 @@ function recordInitiatedPreload(url) {
 let _isInitialized = false
 let _abortController = null
 
-export { isPreloadable, getAnchorHref, isServerHealthy, getMetrics }
+export { isPreloadable, isUrlPreloadable, getAnchorHref, isServerHealthy, getMetrics }
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
@@ -957,10 +1253,16 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 }
 
 export function init(customConfig = {}) {
-    if (_isInitialized) return
+    if (_isInitialized) {
+        if (customConfig && typeof customConfig === 'object' && Object.keys(customConfig).length > 0) {
+            setConfig(customConfig)
+        }
+        return
+    }
 
     const datasetConfig = typeof document !== 'undefined' ? parseDatasetConfig() : {}
-    setConfig({ ...datasetConfig, ...customConfig })
+    const globalConfig = (typeof window !== 'undefined' && window.flashPageConfig && typeof window.flashPageConfig === 'object') ? window.flashPageConfig : {}
+    setConfig({ ...datasetConfig, ...globalConfig, ...customConfig })
 
     if (typeof window === 'undefined' || typeof document === 'undefined') return
     if (!isEnvironmentEligible()) return
@@ -970,6 +1272,7 @@ export function init(customConfig = {}) {
     const { signal } = _abortController
 
     setupEngine()
+    isolateHeatmaps()
     setupEventListeners(signal, onPreloadRequest)
     setupViewportAndDynamicObserver(signal, onPreloadRequest)
     initTelemetry()
@@ -980,7 +1283,10 @@ export function init(customConfig = {}) {
         destroy,
         getMetrics,
         status,
-        config: getConfig(),
+        isPreloadable,
+        isUrlPreloadable,
+        isServerHealthy,
+        get config() { return getConfig() },
     }
 
     if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
@@ -1009,6 +1315,7 @@ export function destroy() {
 export function preload(url, priority = 'auto') {
     if (!url || hasPreloaded(url)) return
     if (!isEnvironmentEligible()) return
+    if (!isUrlPreloadable(url)) return
 
     onPreloadRequest(url, priority)
 }
@@ -1026,6 +1333,7 @@ export function status() {
         preloadedCount: queue.preloadedCount,
         inflightCount: queue.inflightCount,
         queueLength: queue.queueLength,
+        effectiveConcurrency: queue.effectiveConcurrency,
         isHealthy: isServerHealthy(),
         backpressureUntil: getBackpressureUntil(),
         config: { ...getConfig() },

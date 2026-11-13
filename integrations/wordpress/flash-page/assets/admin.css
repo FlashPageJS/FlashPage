@@ -1,0 +1,78 @@
+/**
+ * Flash Page Admin Stylesheet
+ */
+
+.flash-page-admin-wrap {
+    max-width: 1080px;
+    margin-top: 20px;
+}
+
+.flash-page-title {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.flash-page-subtitle {
+    color: #64748b;
+    font-size: 14px;
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+.flash-page-version-badge {
+    font-size: 12px;
+    font-weight: normal;
+    background: #e2e8f0;
+    color: #475569;
+    padding: 2px 8px;
+    border-radius: 12px;
+    vertical-align: middle;
+    margin-left: 8px;
+}
+
+.flash-page-nav-tabs {
+    margin-bottom: 20px;
+}
+
+.flash-page-nav-tabs .nav-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+}
+
+.flash-page-nav-tabs .nav-tab .dashicons {
+    font-size: 17px;
+    width: 17px;
+    height: 17px;
+}
+
+.flash-page-tab-content {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px 24px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.flash-page-tab-content h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-top: 0;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.flash-page-form .form-table th {
+    width: 260px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.flash-page-form .description {
+    color: #64748b;
+    font-size: 13px;
+    margin-top: 4px;
+}

@@ -3,6 +3,8 @@
 import { getConfig, logDebug, setBackpressure } from './config.js'
 
 let _speculationMode = 'none' // 'document-rules' | 'speculation-list' | 'link' | 'fetch'
+let _activeLinkNodes = []
+let _activeRuleNodes = []
 
 export function getEngine() {
     return _speculationMode
@@ -10,7 +12,9 @@ export function getEngine() {
 
 export function resetEngine() {
     _speculationMode = 'none'
-    if (typeof document !== 'undefined') {
+    _activeLinkNodes = []
+    _activeRuleNodes = []
+    if (typeof document !== 'undefined' && typeof document.querySelectorAll === 'function') {
         const injectedRules = document.querySelectorAll('script[data-flash-rules]')
         injectedRules.forEach(el => {
             if (el.parentNode) el.parentNode.removeChild(el)
@@ -30,6 +34,7 @@ export function setupEngine() {
         HTMLScriptElement.supports('speculationrules')
 
     const supportsPrefetchRel = typeof document !== 'undefined' &&
+        typeof document.createElement === 'function' &&
         document.createElement('link').relList &&
         document.createElement('link').relList.supports &&
         document.createElement('link').relList.supports('prefetch')
@@ -76,6 +81,7 @@ export function setupDocumentSpeculationRules() {
                     where: {
                         and: [
                             { href_matches: '/*' },
+                            ...(config.whitelist ? [{ selector_matches: '[data-flash], [data-instant]' }] : []),
                             {
                                 not: {
                                     selector_matches: [
@@ -97,6 +103,16 @@ export function setupDocumentSpeculationRules() {
                                         '[href*="action=logout"]',
                                         '[href*="do=delete"]',
                                         '[href*="do=logout"]',
+                                        ...(config.cartSafeguards ? [
+                                            '[href*="/cart"]',
+                                            '[href*="/checkout"]',
+                                            '[href*="/basket"]',
+                                            '[href*="/my-account"]',
+                                            '[href*="add-to-cart="]',
+                                            '[data-cart-action]',
+                                            '[data-add-to-cart]',
+                                            '.add_to_cart_button',
+                                        ] : [])
                                     ].join(', ')
                                 }
                             }
@@ -127,14 +143,22 @@ export function preloadUsingSpeculationList(url, type) {
         script.nonce = sanitizedNonce
         script.setAttribute('nonce', sanitizedNonce)
     }
+    const safeType = type === 'prerender' ? 'prerender' : 'prefetch'
     script.textContent = JSON.stringify({
-        [type]: [{
+        [safeType]: [{
             source: 'list',
             urls: [url]
         }]
     }).replace(/<\/script/gi, '<\\/script')
     const target = document.head || document.documentElement
-    if (target) target.appendChild(script)
+    if (target) {
+        target.appendChild(script)
+        _activeRuleNodes.push(script)
+        if (_activeRuleNodes.length > 20) {
+            const old = _activeRuleNodes.shift()
+            if (old && old.parentNode) old.parentNode.removeChild(old)
+        }
+    }
     return new Promise(resolve => setTimeout(resolve, 400))
 }
 
@@ -159,7 +183,14 @@ export function preloadUsingLink(url, priority = 'auto') {
         link.addEventListener('error', done, { once: true })
         setTimeout(done, 500)
         const target = document.head || document.documentElement
-        if (target) target.appendChild(link)
+        if (target) {
+            target.appendChild(link)
+            _activeLinkNodes.push(link)
+            if (_activeLinkNodes.length > 25) {
+                const old = _activeLinkNodes.shift()
+                if (old && old.parentNode) old.parentNode.removeChild(old)
+            }
+        }
     })
 }
 

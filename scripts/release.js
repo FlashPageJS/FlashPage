@@ -89,16 +89,39 @@ async function release() {
         console.warn('! Warning: Could not verify Changelog.txt:', err.message)
     }
 
-    // 4. Rebuild all distribution bundles
+    // 4. Update WordPress plugin version headers
+    const wpPluginPath = path.resolve(ROOT, 'integrations/wordpress/flash-page/flash-page.php')
+    try {
+        let wpCode = await fs.readFile(wpPluginPath, 'utf8')
+        wpCode = wpCode.replace(/define\('FLASH_PAGE_VERSION',\s*'[^']+'\);/, `define('FLASH_PAGE_VERSION', '${targetVersion}');`)
+        wpCode = wpCode.replace(/Version:\s*\d+\.\d+\.\d+/g, `Version: ${targetVersion}`)
+        await fs.writeFile(wpPluginPath, wpCode, 'utf8')
+        console.log(`✓ Updated WordPress plugin version in flash-page.php to ${targetVersion}`)
+    } catch (err) {
+        console.warn('! Warning: Could not update WordPress plugin version:', err.message)
+    }
+
+    const wpReadmePath = path.resolve(ROOT, 'integrations/wordpress/flash-page/readme.txt')
+    try {
+        let wpReadme = await fs.readFile(wpReadmePath, 'utf8')
+        wpReadme = wpReadme.replace(/Stable tag:\s*\d+\.\d+\.\d+/g, `Stable tag: ${targetVersion}`)
+        await fs.writeFile(wpReadmePath, wpReadme, 'utf8')
+        console.log(`✓ Updated WordPress plugin readme.txt stable tag to ${targetVersion}`)
+    } catch (err) {
+        console.warn('! Warning: Could not update WordPress readme.txt:', err.message)
+    }
+
+    // 5. Rebuild all distribution bundles
     console.log('\n📦 Rebuilding all universal bundles & updating TypeScript definitions...')
     run('node ./scripts/build.js')
 
-    // 5. Run syntax check & tests
+    // 6. Run syntax check & tests
     console.log('\n🧪 Running test suite and syntax verification...')
     run('npm run check')
     run('npm test')
 
     console.log(`\n🎉 Flash Page v${targetVersion} built and tested successfully!`)
+    console.log(`📦 WordPress Plugin Bundle: dist/flash-page.zip (Ready for WP Admin upload)`)
     console.log('\nTo commit, tag, and publish via GitHub Actions, run:')
     console.log(`  git add .`)
     console.log(`  git commit -m "chore: release v${targetVersion}"`)

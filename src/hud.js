@@ -3,6 +3,7 @@
 import { isServerHealthy } from './config.js'
 import { getEngine } from './engines.js'
 import { getQueueStatus } from './queue.js'
+import { getAnchorHref } from './guards.js'
 
 let _hudElement = null
 let _hudStyleElement = null
@@ -82,7 +83,7 @@ export function updateHUD() {
 
     _hudElement.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:4px">
-      <span style="font-weight:bold;color:#38bdf8">⚡ Flash Page v1.0.2</span>
+      <span style="font-weight:bold;color:#38bdf8">⚡ Flash Page v1.2.0</span>
       <span id="flash-hud-close" style="cursor:pointer;color:#94a3b8;font-size:13px;padding:2px 4px">✕</span>
     </div>
     <div>Engine: <span style="color:#f1f5f9">${engine}</span></div>
@@ -105,7 +106,7 @@ export function highlightPreloadedAnchor(url) {
         const urlObj = new URL(url, loc ? loc.href : undefined)
         const anchors = document.querySelectorAll('a')
         anchors.forEach(a => {
-            const aHref = a.href || a.getAttribute('href')
+            const aHref = getAnchorHref(a)
             if (!aHref) return
             try {
                 const aUrl = new URL(aHref, loc ? loc.href : undefined)

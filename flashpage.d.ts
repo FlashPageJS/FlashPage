@@ -1,4 +1,4 @@
-/*! Flash Page v1.0.4 - TypeScript Definitions | GPL-3.0-or-later */
+/*! Flash Page v1.2.0 - TypeScript Definitions | GPL-3.0-or-later */
 
 export interface FlashPageConfig {
     /**
@@ -63,6 +63,27 @@ export interface FlashPageConfig {
     /** Content Security Policy (CSP) nonce attached to generated Speculation Rules script tags */
     nonce?: string;
 
+    /** Whether to dynamically scale concurrency between 1 and 6 based on network downlink and RTT (default: false) */
+    adaptiveConcurrency?: boolean;
+
+    /** HTTP(S) endpoint URL to stream navigation metrics via navigator.sendBeacon */
+    beaconUrl?: string | null;
+
+    /** Native telemetry exporter: 'ga4' | 'datadog' | 'sentry' or custom callback function */
+    analytics?: 'ga4' | 'datadog' | 'sentry' | ((metric: FlashPageMetric) => void) | null;
+
+    /** Automatically pause Hotjar, Clarity, and FullStory during speculation to prevent false-positive tracking (default: true) */
+    isolateHeatmaps?: boolean;
+
+    /** Automatically block prefetching e-commerce cart, checkout, and basket mutation routes (default: true) */
+    cartSafeguards?: boolean;
+
+    /** Prioritize user interactions (hover, intent cone) over background viewport preloads (default: true) */
+    priorityQueue?: boolean;
+
+    /** Injects preconnect and dns-prefetch tags for external CDN assets discovered in prefetched HTML (default: true) */
+    preconnectCdn?: boolean;
+
     /** Custom filter predicate to allow or deny preloading a specific anchor */
     filter?: (url: URL, element: HTMLAnchorElement) => boolean;
 
@@ -79,6 +100,9 @@ export interface FlashPageMetric {
     transferSize: number;
     duration: number;
     timestamp: number;
+    wasPrerendered?: boolean;
+    activationStart?: number;
+    lcpSavedMs?: number;
 }
 
 export interface FlashPageStatus {
@@ -87,6 +111,7 @@ export interface FlashPageStatus {
     preloadedCount: number;
     inflightCount: number;
     queueLength: number;
+    effectiveConcurrency?: number;
     isHealthy: boolean;
     backpressureUntil: number;
     config: FlashPageConfig;
@@ -126,6 +151,11 @@ export function toggleHUD(forceOpen?: boolean): void;
  * Checks whether an anchor element is eligible for preloading
  */
 export function isPreloadable(anchor: HTMLAnchorElement | null): boolean;
+
+/**
+ * Checks whether a raw URL string is safe and eligible for preloading
+ */
+export function isUrlPreloadable(url: string, config?: Partial<FlashPageConfig>, anchor?: any): boolean;
 
 /**
  * Safely extracts the href string from HTMLAnchorElement, SVGAElement, or generic element
@@ -178,6 +208,16 @@ export function resetConfig(): void;
 export function extractSubresources(htmlText: string): string[];
 
 /**
+ * Extracts unique external CDN origins from subresource links
+ */
+export function extractExternalOrigins(htmlText: string): string[];
+
+/**
+ * Injects preconnect and dns-prefetch links for external origins into document head
+ */
+export function preconnectOrigins(origins: string[]): void;
+
+/**
  * Records a navigation transition in the client-side Markov model
  */
 export function recordTransition(fromPath: string, toPath: string): void;
@@ -187,21 +227,63 @@ export function recordTransition(fromPath: string, toPath: string): void;
  */
 export function predictNextLink(fromPath: string): string | null;
 
-/**
- * React hook for Flash Page integration
- */
-export function useFlashPage(config?: Partial<FlashPageConfig>): {
+export interface FlashPageHookReturn {
     preload: typeof preload;
+    destroy: typeof destroy;
     status: FlashPageStatus;
-    getMetrics: FlashPageMetric[];
-};
+    getStatus: typeof status;
+    getMetrics: typeof getMetrics;
+    toggleHUD: typeof toggleHUD;
+    isPreloadable: typeof isPreloadable;
+    isUrlPreloadable: typeof isUrlPreloadable;
+    predictNextLink: typeof predictNextLink;
+    preconnectOrigins: typeof preconnectOrigins;
+    isServerHealthy: typeof isServerHealthy;
+    isEnvironmentEligible: typeof isEnvironmentEligible;
+    setBackpressure: typeof setBackpressure;
+    config: FlashPageConfig;
+}
+
+/**
+ * React hook for Flash Page integration with full library access
+ */
+export function useFlashPage(config?: Partial<FlashPageConfig>): FlashPageHookReturn;
+
+/**
+ * Vue 3 & Nuxt 3 composable with full library access
+ */
+export function useFlash(config?: Partial<FlashPageConfig>): FlashPageHookReturn;
 
 /**
  * Vue 3 directive for Flash Page
  */
 export const vFlash: {
-    mounted(el: HTMLAnchorElement, binding?: { value?: string }): void;
+    mounted(el: HTMLElement, binding?: { value?: string; arg?: string; modifiers?: Record<string, boolean> }): void;
+    updated(el: HTMLElement, binding?: { value?: string; arg?: string; modifiers?: Record<string, boolean> }): void;
 };
+
+/**
+ * Svelte 5 action for use:flashAction
+ */
+export function flashAction(node: HTMLElement, options?: { href?: string; priority?: 'auto' | 'high' | 'low'; prerender?: boolean; noFlash?: boolean; exclude?: boolean }): {
+    update?(newOptions?: { href?: string; priority?: 'auto' | 'high' | 'low'; prerender?: boolean; noFlash?: boolean; exclude?: boolean }): void;
+    destroy?(): void;
+};
+
+/**
+ * Astro View Transitions Adapter
+ */
+export function setupAstroTransitions(config?: Partial<FlashPageConfig>): () => void;
+
+/**
+ * Factory to create React FlashLink component
+ */
+export function createFlashLink(React: any): any;
+
+/**
+ * React FlashLink Component
+ */
+export const FlashLink: any;
 
 declare global {
     interface Window {
@@ -214,6 +296,9 @@ declare global {
             toggleHUD: typeof toggleHUD;
             recordTransition: typeof recordTransition;
             predictNextLink: typeof predictNextLink;
+            isPreloadable: typeof isPreloadable;
+            isUrlPreloadable: typeof isUrlPreloadable;
+            isServerHealthy: typeof isServerHealthy;
             config: FlashPageConfig;
         };
     }

@@ -1,5 +1,5 @@
 /*!
- * Flash Page v1.0.2
+ * Flash Page v1.2.0
  * Universal Speculation Rules & Smart Prefetch Manager
  * Copyright (C) 2026 Flash Page Contributors
  * Licensed under the GNU General Public License v3.0 (GPL-3.0-or-later)
@@ -18,7 +18,7 @@ import {
     logDebug,
 } from './config.js'
 
-import { isPreloadable, getAnchorHref } from './guards.js'
+import { isPreloadable, isUrlPreloadable, getAnchorHref, isolateHeatmaps } from './guards.js'
 import { setupEngine, getEngine, resetEngine } from './engines.js'
 import {
     enqueuePrefetch,
@@ -30,10 +30,10 @@ import {
 import { setupEventListeners, resetInputState } from './input.js'
 import { setupViewportAndDynamicObserver, resetViewportObservers } from './viewport.js'
 import { initMarkovModel, recordTransition, predictNextLink } from './markov.js'
-import { extractSubresources, prewarmSubresources } from './subresources.js'
+import { extractSubresources, prewarmSubresources, resetSubresources, extractExternalOrigins, preconnectOrigins } from './subresources.js'
 import { toggleHUD, updateHUD, highlightPreloadedAnchor, resetHUD } from './hud.js'
 import { initTelemetry, recordInitiatedPreload, getMetrics, resetTelemetry } from './telemetry.js'
-import { useFlashPage, vFlash } from './framework-utils.js'
+import { useFlashPage, vFlash, useFlash, flashAction, setupAstroTransitions, createFlashLink, FlashLink } from './framework-utils.js'
 
 let _isInitialized = false
 let _abortController = null
@@ -41,6 +41,7 @@ let _abortController = null
 // Re-export public APIs
 export {
     isPreloadable,
+    isUrlPreloadable,
     getAnchorHref,
     isServerHealthy,
     isEnvironmentEligible,
@@ -51,11 +52,18 @@ export {
     setConfig,
     resetConfig,
     extractSubresources,
+    extractExternalOrigins,
+    preconnectOrigins,
     recordTransition,
     predictNextLink,
     toggleHUD,
     getMetrics,
     useFlashPage,
+    useFlash,
+    flashAction,
+    setupAstroTransitions,
+    createFlashLink,
+    FlashLink,
     vFlash,
 }
 
@@ -73,11 +81,17 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
  * @param {Partial<import('../flashpage.d.ts').FlashPageConfig>} [customConfig]
  */
 export function init(customConfig = {}) {
-    if (_isInitialized) return
+    if (_isInitialized) {
+        if (customConfig && typeof customConfig === 'object' && Object.keys(customConfig).length > 0) {
+            setConfig(customConfig)
+        }
+        return
+    }
 
-    // Merge dataset attributes from document.body if in DOM
+    // Merge dataset attributes from document.body/currentScript and global window.flashPageConfig
     const datasetConfig = typeof document !== 'undefined' ? parseDatasetConfig() : {}
-    setConfig({ ...datasetConfig, ...customConfig })
+    const globalConfig = (typeof window !== 'undefined' && window.flashPageConfig && typeof window.flashPageConfig === 'object') ? window.flashPageConfig : {}
+    setConfig({ ...datasetConfig, ...globalConfig, ...customConfig })
 
     if (typeof window === 'undefined' || typeof document === 'undefined') return
 
@@ -91,6 +105,7 @@ export function init(customConfig = {}) {
     const { signal } = _abortController
 
     setupEngine()
+    isolateHeatmaps()
     setupEventListeners(signal, onPreloadRequest, toggleHUD)
     setupViewportAndDynamicObserver(signal, onPreloadRequest)
     initTelemetry()
@@ -113,7 +128,10 @@ export function init(customConfig = {}) {
         toggleHUD,
         recordTransition,
         predictNextLink,
-        config,
+        isPreloadable,
+        isUrlPreloadable,
+        isServerHealthy,
+        get config() { return getConfig() },
     }
 
     if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
@@ -121,7 +139,7 @@ export function init(customConfig = {}) {
             window.dispatchEvent(new CustomEvent('flash:ready', { detail: { status: status() } }))
         } catch {}
     }
-    logDebug('Flash Page v1.0.2 initialized with engine:', getEngine())
+    logDebug('Flash Page v1.2.0 initialized with engine:', getEngine())
 }
 
 /**
@@ -139,6 +157,7 @@ export function destroy() {
     resetEngine()
     resetHUD()
     resetTelemetry()
+    resetSubresources()
 
     _isInitialized = false
     resetConfig()
@@ -153,6 +172,7 @@ export function destroy() {
 export function preload(url, priority = 'auto') {
     if (!url || hasPreloaded(url)) return
     if (!isEnvironmentEligible()) return
+    if (!isUrlPreloadable(url)) return
 
     onPreloadRequest(url, priority)
 }
@@ -176,6 +196,7 @@ export function status() {
         preloadedCount: queue.preloadedCount,
         inflightCount: queue.inflightCount,
         queueLength: queue.queueLength,
+        effectiveConcurrency: queue.effectiveConcurrency,
         isHealthy: isServerHealthy(),
         backpressureUntil: getBackpressureUntil(),
         config: { ...getConfig() },

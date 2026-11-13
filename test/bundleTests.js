@@ -12,8 +12,12 @@ console.log('  ✓ All 4 bundles successfully imported via ESM')
 
 // 2. Export Parity Checks
 const expectedFullExports = [
+    'FlashLink',
+    'createFlashLink',
     'destroy',
+    'extractExternalOrigins',
     'extractSubresources',
+    'flashAction',
     'getAnchorHref',
     'getBackpressureUntil',
     'getConfig',
@@ -22,6 +26,8 @@ const expectedFullExports = [
     'isEnvironmentEligible',
     'isPreloadable',
     'isServerHealthy',
+    'isUrlPreloadable',
+    'preconnectOrigins',
     'predictNextLink',
     'preload',
     'recordTransition',
@@ -29,8 +35,10 @@ const expectedFullExports = [
     'setBackpressure',
     'setCachedBattery',
     'setConfig',
+    'setupAstroTransitions',
     'status',
     'toggleHUD',
+    'useFlash',
     'useFlashPage',
     'vFlash',
 ].sort()
@@ -42,6 +50,7 @@ const expectedLiteExports = [
     'init',
     'isPreloadable',
     'isServerHealthy',
+    'isUrlPreloadable',
     'preload',
     'status',
 ].sort()
@@ -99,7 +108,7 @@ assert.equal(liteMin.isPreloadable({ href: 'https://bundle-test.com/products', h
 
 liteMin.init({ allowQueryString: false })
 assert.equal(liteMin.status().initialized, true)
-liteMin.preload('https://bundle-test.com/cart', 'auto')
+liteMin.preload('https://bundle-test.com/pricing', 'auto')
 assert.equal(liteMin.status().preloadedCount, 1)
 
 liteMin.destroy()

@@ -430,6 +430,15 @@
     <button class="danger" id="btn-simulate-429">
       <span>🛡️ Simulate 429 Backpressure (30s)</span>
     </button>
+    <button id="btn-test-cart-shield" style="border-color:#10b981;color:#10b981;">
+      <span>🛒 Test Cart &amp; Checkout Shield</span>
+    </button>
+    <button id="btn-test-priority-queue" style="border-color:#f59e0b;color:#f59e0b;">
+      <span>⚡ Test Priority Lanes (High vs Low)</span>
+    </button>
+    <button id="btn-test-preconnect-cdn" style="border-color:#38bdf8;color:#38bdf8;">
+      <span>🌐 Test CDN Preconnect Handshake</span>
+    </button>
     <button id="btn-add-dynamic-link">
       <span>➕ Dynamically Insert Link (SPA Observer)</span>
     </button>
@@ -472,7 +481,7 @@
     <!-- Column 1: Configuration Form -->
     <div class="card">
       <h2>
-        <span>⚙️ Live Configuration Dashboard (All 20 Parameters)</span>
+        <span>⚙️ Live Configuration Dashboard (All 28 Master Parameters)</span>
         <button id="btn-apply-config" class="primary" style="padding:4px 10px;font-size:11px;">Apply Settings</button>
       </h2>
       <div class="form-grid">
@@ -505,6 +514,23 @@
         <label>
           Hover Delay (Explicit ms):
           <input type="number" id="cfg-delay-hover" value="65" min="0" max="1000">
+        </label>
+        <label>
+          Analytics Exporter:
+          <select id="cfg-analytics">
+            <option value="" selected>None (Default)</option>
+            <option value="ga4">Google Analytics 4 (GA4)</option>
+            <option value="datadog">Datadog RUM</option>
+            <option value="sentry">Sentry Breadcrumbs</option>
+          </select>
+        </label>
+        <label>
+          CSP Nonce:
+          <input type="text" id="cfg-nonce" placeholder="e.g. rAnd0m123">
+        </label>
+        <label style="grid-column: span 2;">
+          Beacon Telemetry URL:
+          <input type="text" id="cfg-beacon-url" placeholder="e.g. /api/telemetry-beacon">
         </label>
       </div>
 
@@ -544,6 +570,21 @@
         </label>
         <label class="checkbox-label">
           <input type="checkbox" id="cfg-custom-filter"> Custom Filter Rule
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfg-adaptive-concurrency"> Adaptive Concurrency
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfg-cart-safeguards" checked> Cart Safeguards (E-Commerce)
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfg-priority-queue" checked> Weighted Priority Queue
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfg-preconnect-cdn" checked> Preconnect CDN Origins
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfg-isolate-heatmaps" checked> Isolate Session Replays
         </label>
       </div>
     </div>
@@ -861,6 +902,7 @@
     resetConfig,
     recordTransition,
     predictNextLink,
+    preconnectOrigins,
     getMetrics
   } from '../flashpage.js'
 
@@ -873,12 +915,27 @@
     const time = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0')
     const line = document.createElement('div')
     line.className = 'terminal-line'
-    line.innerHTML = `
-      <span class="terminal-time">${time}</span>
-      <span class="terminal-event">${event}</span>
-      <span class="terminal-data">${typeof data === 'object' ? JSON.stringify(data) : data}</span>
-    `
+
+    const timeSpan = document.createElement('span')
+    timeSpan.className = 'terminal-time'
+    timeSpan.textContent = time
+
+    const eventSpan = document.createElement('span')
+    eventSpan.className = 'terminal-event'
+    eventSpan.textContent = String(event || '')
+
+    const dataSpan = document.createElement('span')
+    dataSpan.className = 'terminal-data'
+    dataSpan.textContent = typeof data === 'object' ? JSON.stringify(data) : String(data || '')
+
+    line.appendChild(timeSpan)
+    line.appendChild(eventSpan)
+    line.appendChild(dataSpan)
+
     terminal.appendChild(line)
+    while (terminal.childNodes.length > 200) {
+      terminal.removeChild(terminal.firstChild)
+    }
     terminal.scrollTop = terminal.scrollHeight
   }
 
@@ -897,7 +954,7 @@
         healthBadge.textContent = 'Server: Normal'
         healthBadge.className = 'badge healthy'
       } else {
-        const remaining = Math.max(0, Math.ceil((s.backpressureUntil - Date.now()) / 1000))
+        const remaining = Math.max(0, Math.ceil((Number(s.backpressureUntil || 0) - Date.now()) / 1000))
         healthBadge.textContent = `Server: Backpressure (${remaining}s)`
         healthBadge.className = 'badge backpressure'
       }
@@ -909,11 +966,12 @@
   function updateDOMInspector() {
     const rules = document.querySelectorAll('script[data-flash-rules]')
     const links = document.querySelectorAll('link[data-flash-link]')
-    const total = rules.length + links.length
+    const preconnects = document.querySelectorAll('link[data-flash-preconnect]')
+    const total = rules.length + links.length + preconnects.length
     domCountBadge.textContent = `${total} node${total === 1 ? '' : 's'}`
 
     if (total === 0) {
-      domInspector.textContent = '<!-- No Speculation Rules or Prefetch link tags injected yet -->'
+      domInspector.textContent = '<!-- No Speculation Rules, Prefetch link, or Preconnect tags injected yet -->'
       return
     }
 
@@ -922,7 +980,7 @@
       code += `<!-- Injected Speculation Rule #${idx + 1} -->\n`
       try {
         const parsed = JSON.parse(el.textContent)
-        code += `<script type="speculationrules">\n${JSON.stringify(parsed, null, 2)}\n<\/script>\n\n`
+        code += `<script type="speculationrules"${el.nonce ? ` nonce="${el.nonce}"` : ''}>\n${JSON.stringify(parsed, null, 2)}\n<\/script>\n\n`
       } catch {
         code += `<script type="speculationrules">${el.textContent}<\/script>\n\n`
       }
@@ -931,6 +989,11 @@
     links.forEach((el, idx) => {
       code += `<!-- Injected Link Prefetch #${idx + 1} -->\n`
       code += `<link rel="${el.rel}" href="${el.href}" as="${el.as || 'document'}" fetchpriority="${el.fetchPriority || 'auto'}">\n\n`
+    })
+
+    preconnects.forEach((el, idx) => {
+      code += `<!-- Injected CDN Handshake #${idx + 1} -->\n`
+      code += `<link rel="${el.rel}" href="${el.href}" crossorigin>\n\n`
     })
 
     domInspector.textContent = code.trim()
@@ -963,6 +1026,31 @@
     updateStatusUI()
   }
 
+  // Test Cart & Checkout Shield
+  document.getElementById('btn-test-cart-shield').onclick = () => {
+    preload('/cart', 'high')
+    preload('/checkout', 'high')
+    preload('/my-account/orders', 'high')
+    logTerminal('CART_SHIELD', 'Attempted to preload /cart, /checkout, /my-account. Result: Blocked by cartSafeguards protection!')
+    updateStatusUI()
+  }
+
+  // Test Priority Queue Lanes
+  document.getElementById('btn-test-priority-queue').onclick = () => {
+    preload('/low-priority-bg-1.html', 'low')
+    preload('/low-priority-bg-2.html', 'low')
+    preload('/high-priority-user-intent.html', 'high')
+    logTerminal('PRIORITY_QUEUE', 'Queued 2 "low" priority preloads followed by 1 "high" priority preload. High jumps to the front of queue!')
+    updateStatusUI()
+  }
+
+  // Test CDN Preconnect Handshake
+  document.getElementById('btn-test-preconnect-cdn').onclick = () => {
+    preconnectOrigins(['https://fonts.googleapis.com', 'https://fonts.gstatic.com'])
+    logTerminal('PRECONNECT_CDN', 'Injected <link rel="preconnect"> tags for Google Fonts CDN origins into document <head>!')
+    updateDOMInspector()
+  }
+
   document.getElementById('btn-clear-terminal').onclick = () => {
     terminal.innerHTML = ''
   }
@@ -975,11 +1063,17 @@
 
   // Programmatic Preload Button
   document.getElementById('btn-api-preload').onclick = () => {
-    const url = document.getElementById('api-preload-url').value
+    const urlInput = document.getElementById('api-preload-url')
+    const url = (urlInput.value || '').trim()
+    if (!url) return
     const priority = document.getElementById('api-preload-priority').value
-    preload(url, priority)
-    logTerminal('PROGRAMMATIC', `Executed preload("${url}", "${priority}")`)
-    updateStatusUI()
+    try {
+      preload(url, priority)
+      logTerminal('PROGRAMMATIC', `Executed preload("${url}", "${priority}")`)
+      updateStatusUI()
+    } catch (err) {
+      logTerminal('ERROR', `Preload call failed: ${err.message}`)
+    }
   }
 
   // Markov AI Test Button
@@ -1001,7 +1095,9 @@
   document.getElementById('btn-burst-queue').onclick = () => {
     _burstBatch++
     for (let i = 1; i <= 6; i++) {
-      preload(`/burst-batch-${_burstBatch}-page-${i}.html`, 'auto')
+      try {
+        preload(`/burst-batch-${_burstBatch}-page-${i}.html`, 'auto')
+      } catch {}
     }
     logTerminal('BURST_TEST', `Queued 6 concurrent URLs for batch #${_burstBatch} to test concurrency queue`)
     updateStatusUI()
@@ -1014,16 +1110,23 @@
     const container = document.getElementById('dynamic-links-container')
     const row = document.createElement('div')
     row.className = 'link-row'
-    row.innerHTML = `
-      <div>
-        <a href="/dynamic-article-${_dynLinkCount}.html">Dynamically Inserted Article #${_dynLinkCount}</a>
-        <span style="font-size:11px;color:var(--text-muted);margin-left:8px;"><code>MutationObserver</code></span>
-      </div>
-      <div class="link-meta">
-        <span class="tag-allowed">Observed</span>
-        <span>Dynamic DOM</span>
-      </div>
-    `
+
+    const leftCol = document.createElement('div')
+    const a = document.createElement('a')
+    a.href = `/dynamic-article-${_dynLinkCount}.html`
+    a.textContent = `Dynamically Inserted Article #${_dynLinkCount}`
+    const spanCode = document.createElement('span')
+    spanCode.style.cssText = 'font-size:11px;color:var(--text-muted);margin-left:8px;'
+    spanCode.innerHTML = '<code>MutationObserver</code>'
+    leftCol.appendChild(a)
+    leftCol.appendChild(spanCode)
+
+    const rightCol = document.createElement('div')
+    rightCol.className = 'link-meta'
+    rightCol.innerHTML = '<span class="tag-allowed">Observed</span><span>Dynamic DOM</span>'
+
+    row.appendChild(leftCol)
+    row.appendChild(rightCol)
     container.appendChild(row)
     logTerminal('MUTATION', `Inserted /dynamic-article-${_dynLinkCount}.html into DOM`)
   }
@@ -1047,17 +1150,27 @@
     lastT = now
   })
 
-  // Configuration Form Apply
+  // Configuration Form Apply (All 28 Master Parameters)
   document.getElementById('btn-apply-config').onclick = () => {
     const intensityVal = document.getElementById('cfg-intensity').value
     const parsedIntensity = isNaN(parseInt(intensityVal)) ? intensityVal : parseInt(intensityVal)
     const hasCustomFilter = document.getElementById('cfg-custom-filter').checked
 
+    const rawMaxConcurrent = parseInt(document.getElementById('cfg-max-concurrent').value, 10)
+    const maxConcurrent = Math.max(1, Math.min(10, isNaN(rawMaxConcurrent) ? 3 : rawMaxConcurrent))
+
+    const rawDelay = parseInt(document.getElementById('cfg-delay-hover').value, 10)
+    const delayOnHover = Math.max(0, Math.min(5000, isNaN(rawDelay) ? 65 : rawDelay))
+
+    const nonceVal = (document.getElementById('cfg-nonce').value || '').trim()
+    const analyticsVal = document.getElementById('cfg-analytics').value || null
+    const beaconVal = (document.getElementById('cfg-beacon-url').value || '').trim() || null
+
     const newConfig = {
       intensity: parsedIntensity,
       specrules: document.getElementById('cfg-specrules').value,
-      maxConcurrent: parseInt(document.getElementById('cfg-max-concurrent').value, 10),
-      delayOnHover: parseInt(document.getElementById('cfg-delay-hover').value, 10),
+      maxConcurrent,
+      delayOnHover,
       whitelist: document.getElementById('cfg-whitelist').checked,
       allowQueryString: document.getElementById('cfg-allow-query').checked,
       allowExternalLinks: document.getElementById('cfg-allow-external').checked,
@@ -1069,6 +1182,14 @@
       respectDataSaver: document.getElementById('cfg-data-saver').checked,
       respectBattery: document.getElementById('cfg-battery').checked,
       safariFallback: document.getElementById('cfg-safari-fallback').checked,
+      adaptiveConcurrency: document.getElementById('cfg-adaptive-concurrency').checked,
+      cartSafeguards: document.getElementById('cfg-cart-safeguards').checked,
+      priorityQueue: document.getElementById('cfg-priority-queue').checked,
+      preconnectCdn: document.getElementById('cfg-preconnect-cdn').checked,
+      isolateHeatmaps: document.getElementById('cfg-isolate-heatmaps').checked,
+      nonce: nonceVal || null,
+      analytics: analyticsVal,
+      beaconUrl: beaconVal,
       filter: hasCustomFilter ? (url) => !url.includes('filter-blocked') : null
     }
 

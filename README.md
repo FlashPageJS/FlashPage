@@ -1,7 +1,7 @@
-# Flash Page (v1.0.4)
+# Flash Page (v1.2.0)
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-110%2B%20Passing-brightgreen.svg)](#development-building--testing)
+[![Tests](https://img.shields.io/badge/Tests-250%2B%20Passing-brightgreen.svg)](#development-building--testing)
 [![Bundle Size (Full)](https://img.shields.io/badge/Full%20Bundle-27%20KB%20min%20(8.1%20KB%20gz)-informational.svg)](#universal-distribution-tiers-full-vs-lite)
 [![Bundle Size (Lite)](https://img.shields.io/badge/Lite%20Bundle-20%20KB%20min%20(5.9%20KB%20gz)-informational.svg)](#universal-distribution-tiers-full-vs-lite)
 [![Indentation](https://img.shields.io/badge/Format-4--space%20Indent-blueviolet.svg)](#modular-source-architecture-src)
@@ -9,6 +9,10 @@
 
 > **Make your site’s pages load instantly.**  
 > *Smart prefetching and Speculation Rules manager with trajectory prediction, in-browser DevTools HUD, and server backpressure protection.*
+
+---
+
+> 📚 **Complete Documentation Suite**: Explore the dedicated [Documentation Hub](docs/README.md) for full guides across [React & Next.js](docs/frameworks/react-nextjs.md), [Vue & Nuxt](docs/frameworks/vue-nuxt.md), [Svelte & SvelteKit](docs/frameworks/svelte-sveltekit.md), [Astro](docs/frameworks/astro.md), [WordPress & WooCommerce](docs/frameworks/wordpress-woocommerce.md), [Shopify](docs/frameworks/shopify.md), [Laravel](docs/frameworks/laravel-blade.md), [Django](docs/frameworks/django-jinja.md), [HTMX](docs/frameworks/htmx-alpine-turbo.md), [Configuration Reference](docs/configuration-reference.md), [API Reference](docs/api-reference.md), and [Testing & Auditing](docs/testing-and-auditing.md).
 
 ---
 
@@ -24,7 +28,7 @@
   - [Feature Comparison: instant.page vs. Flash Page](#feature-comparison-instantpage-vs-flash-page)
 - [Quick Start by Platform](#quick-start-by-platform)
   - [Plain HTML / Static Sites](#1-plain-html--static-sites)
-  - [WordPress](#2-wordpress)
+  - [WordPress & WooCommerce Plugin](#2-wordpress--woocommerce)
   - [Shopify](#3-shopify)
   - [Laravel / Blade & Django / Jinja](#4-laravel--blade--django--jinja)
   - [NPM & Modern Bundlers (Vite / Next.js / Astro)](#5-npm--modern-bundlers-vite-webpack-nextjs-nuxt-astro)
@@ -32,11 +36,11 @@
 - [Smart History-Based Navigation (Markov)](#smart-history-based-navigation-markov)
 - [Server Backpressure & Health Protection (429 / 503)](#server-backpressure--health-protection)
 - [Configuration Reference](#configuration-reference)
-  - [Master Parameters Matrix (All 20 Options)](#master-parameters-matrix-all-20-options)
+  - [Master Parameters Matrix (All 28 Options)](#master-parameters-matrix-all-28-options)
   - [Deep-Dive: Parameter Details & Behaviors](#deep-dive-parameter-details--behaviors)
   - [Per-Link Overrides & Safety Attributes](#per-link-overrides--safety-attributes)
 - [Complete Programmatic API & TypeScript Reference](#complete-programmatic-api--typescript-reference)
-- [Framework Integration (React, Vue 3, HTMX, Turbo)](#framework-integration)
+- [Framework Integration (React, Vue 3, Svelte, Astro, HTMX)](#framework-integration)
 - [Browser Support Matrix](#browser-support-matrix)
 - [Development, Building & Testing](#development-building--testing)
 - [License & Legal Attribution](#license--legal-attribution)
@@ -208,7 +212,7 @@ Upgrading existing websites from `instant.page` to **Flash Page** is **100% back
 
 ### Feature Comparison: `instant.page` vs. `Flash Page`
 
-| Feature / Capability | `instant.page` (v5.2.0) | `Flash Page` (v1.0.4) | Architectural Advantage |
+| Feature / Capability | `instant.page` (v5.2.0) | `Flash Page` (v1.2.0) | Architectural Advantage |
 | :--- | :---: | :---: | :--- |
 | **Native Speculation Rules (Document Rules)** | ❌ | ✅ | Zero-JS browser-level speculation in Chrome/Edge 121+ |
 | **Prerender Engine (Full Background Rendering)** | ❌ | ✅ | Instant page display with pre-executed scripts & styles |
@@ -220,20 +224,28 @@ Upgrading existing websites from `instant.page` to **Flash Page** is **100% back
 | **Smart History Navigation (Markov Model AI)** | ❌ | ✅ | Learns user journeys locally (a few KB at most, no server calls) |
 | **Viewport Prefetching with Rapid Scroll Guard** | ⚠️ *(Basic)* | ✅ | Pauses prefetching during rapid scrolling to preserve bandwidth |
 | **Critical Subresource Pre-warming (CSS & Fonts)** | ❌ | ✅ | Discovers & warms stylesheets and web fonts ahead of navigation |
+| **Subresource Preconnect 2.0 (CDN Origins)** | ❌ | ✅ | Pre-resolves Google Fonts and external CDN origins dynamically |
 | **Concurrency-Controlled Queue Throttling** | ❌ | ✅ | Caps concurrent requests (default 3) to prevent socket congestion |
+| **Adaptive Dynamic Concurrency (1-6 sockets)** | ❌ | ✅ | Dynamically scales concurrency between 1 and 6 based on downlink and RTT |
+| **Priority Queue Scheduling (LIFO & Weights)** | ❌ | ✅ | User interactions (hover, intent cone) jump ahead of viewport preloads |
 | **Server Backpressure Protection (HTTP 429 / 503)** | ❌ | ✅ | Reads `Retry-After` headers and pauses prefetching automatically |
 | **Battery Level Guard ($<20\%$ & Discharging)** | ❌ | ✅ | Battery API integration prevents battery drain on mobile |
 | **Device Memory Guard ($\le 1\text{ GB}$ RAM)** | ❌ | ✅ | Skips preloading on low-spec hardware to prevent browser lag |
 | **Data Saver (`Save-Data`) & 2G Network Guard** | ✅ | ✅ | Automatically respects user privacy and metered bandwidth |
 | **Destructive Action URL & Query Protection** | ❌ | ✅ | Auto-ignores `/logout`, `/delete`, and query parameters like `?action=delete` |
+| **E-Commerce Cart & Checkout Protection** | ❌ | ✅ | Blocks `/cart`, `/checkout`, `/my-account`, and `?add-to-cart=` routes |
 | **CSP Nonce Compliance (`data-flash-nonce`)** | ❌ | ✅ | Attaches strict Content Security Policy nonces to speculation scripts |
 | **Open Shadow DOM Link Traversal** | ❌ | ✅ | Traverses Web Component boundaries using `composedPath()` |
 | **Modern Action Attribute Filters** | ❌ | ✅ | Automatically filters `[data-method]`, `[hx-*]`, `[data-turbo-method]` |
 | **Target Exclusion (`target="_blank"`)** | ❌ | ✅ | Skips new-tab links in both JS and native Speculation Rules |
+| **Heatmap & Replay Isolation (Hotjar / Clarity)** | ❌ | ✅ | Prevents phantom sessions by pausing trackers during speculative prerendering |
 | **Dynamic SPAs (`MutationObserver`)** | ❌ | ✅ | Automatically captures newly mounted links in React, Vue, HTMX |
-| **React Hook (`useFlashPage`) & Vue Directive (`vFlash`)** | ❌ | ✅ | First-class framework integration utilities included |
+| **Official WordPress & WooCommerce Plugin** | ❌ | ✅ | Production WordPress plugin with Admin UI and WooCommerce protection |
+| **Framework Adapters (React, Vue, Svelte, Astro)** | ❌ | ✅ | First-class `<FlashLink>`, `vFlash`, `flashAction`, and Astro transition listeners |
 | **In-Browser DevTools HUD (`Ctrl + Shift + F`)** | ❌ | ✅ | Real-time visual overlay, queue depths & glowing link highlights |
 | **Real-Time Conversion Telemetry (`flash:metric`)** | ❌ | ✅ | Performance Navigation Timing API integration & hit-rate metrics |
+| **Prerender Efficacy Tracking (LCP Saved ms)** | ❌ | ✅ | Quantifies milliseconds saved on Largest Contentful Paint via activationStart |
+| **Native Analytics Streaming Exporters** | ❌ | ✅ | Built-in exporters for GA4, Datadog RUM, Sentry, and Beacon API |
 | **Programmatic API (`preload()`, `destroy()`, `status()`)** | ❌ | ✅ | Full runtime JavaScript API control for programmatic navigation |
 | **TypeScript Type Declarations (`.d.ts`)** | ❌ | ✅ | Complete type safety for TypeScript & modern bundler projects |
 | **Drop-In Compatibility with `data-instant-*`** | N/A | ✅ | 100% backward compatible without modifying existing markup |
@@ -253,11 +265,19 @@ Add the script tag right before your closing `</body>` tag:
 <script src="/flashpage.lite.min.js" type="module"></script>
 ```
 
-### 2. WordPress
-Add this single line to your active theme’s `functions.php`:
+### 2. WordPress & WooCommerce
+
+#### Option A: Official WordPress Plugin (Recommended)
+Copy or upload the `integrations/wordpress/flash-page/` folder into your site's `wp-content/plugins/` directory and activate it:
+- **Admin Dashboard**: Configure Edition (Full vs Lite), preload intensity, and exclusion rules under `wp-admin -> Settings -> Flash Page`.
+- **WooCommerce Ready**: Automatically pauses speculative prefetching on `/cart`, `/checkout`, `/my-account`, and `?add-to-cart=` endpoints.
+- **Admin HUD**: Checkbox to display the DevTools HUD strictly for logged-in administrators.
+
+#### Option B: Theme Enqueue Snippet
+Add this single line to your active theme's `functions.php`:
 ```php
 function add_flash_page() {
-    wp_enqueue_script('flash-page', get_template_directory_uri() . '/flashpage.min.js', array(), '1.0.4', true);
+    wp_enqueue_script('flash-page', get_template_directory_uri() . '/flashpage.min.js', array(), '1.2.0', true);
 }
 add_action('wp_enqueue_scripts', 'add_flash_page');
 ```
@@ -351,7 +371,7 @@ To prevent aggressive prefetching from stressing backend servers or triggering I
 
 You can configure Flash Page either via **JavaScript `init(options)`** or declaratively via **HTML `data-*` attributes** on `<body>`.
 
-### Master Parameters Matrix (All 21 Options)
+### Master Parameters Matrix (All 28 Options)
 
 | Parameter (`FlashPageConfig`) | Type / Allowed Values | Default | HTML Dataset Attribute | Description |
 | :--- | :--- | :---: | :--- | :--- |
@@ -367,12 +387,19 @@ You can configure Flash Page either via **JavaScript `init(options)`** or declar
 | `respectBattery` | `boolean` | `true` | `data-flash-no-battery` *(negated)* | Automatically disables preloading if battery level is below 20% and discharging. |
 | `safariFallback` | `boolean` | `true` | `data-flash-no-safari-fallback` *(negated)* | Uses low-priority `fetch()` cache warming fallback on WebKit / Safari. |
 | `maxConcurrent` | `number` | `3` | `data-flash-max-concurrent` | Maximum concurrent in-flight speculative network requests. |
+| `adaptiveConcurrency` | `boolean` | `false` | `data-flash-adaptive-concurrency` | Dynamically scales concurrency between 1 and 6 based on network downlink and RTT. |
+| `priorityQueue` | `boolean` | `true` | `data-flash-no-priority-queue` *(negated)* | Prioritizes user interactions (hover, intent cone) over background viewport preloads. |
 | `subresources` | `boolean` | `false` | `data-flash-subresources` | Parses prefetched HTML to pre-warm linked critical stylesheets and web fonts. |
+| `preconnectCdn` | `boolean` | `true` | `data-flash-no-preconnect-cdn` *(negated)* | Injects preconnect and dns-prefetch tags for external CDN assets discovered in HTML. |
 | `markov` | `boolean` | `true` | `data-flash-no-markov` *(negated)* | Learns page transitions in `localStorage` to speculate next pages during idle time. |
 | `backpressure` | `boolean` | `true` | `data-flash-no-backpressure` *(negated)* | Pauses prefetching site-wide on HTTP 429/503 responses based on `Retry-After`. |
+| `cartSafeguards` | `boolean` | `true` | `data-flash-no-cart-safeguards` *(negated)* | Automatically blocks prefetching e-commerce cart, checkout, and basket mutation routes. |
 | `debug` | `boolean` | `false` | `data-flash-debug` | Enables verbose diagnostic logging in browser developer console. |
 | `hud` | `boolean` | `false` | `data-flash-hud` | Forces the DevTools HUD overlay to be open on startup (`Ctrl+Shift+F`). |
 | `nonce` | `string` | `null` | `data-flash-nonce` | Content Security Policy (CSP) nonce attached to generated Speculation Rules tags. |
+| `beaconUrl` | `string` | `null` | `data-flash-beacon-url` | HTTP(S) endpoint URL to stream navigation metrics via `navigator.sendBeacon`. |
+| `analytics` | `'ga4'` \| `'datadog'` \| `'sentry'` \| `(m) => void` | `null` | `data-flash-analytics` | Native telemetry exporter to stream navigation performance to monitoring platforms. |
+| `isolateHeatmaps` | `boolean` | `true` | `data-flash-no-isolate-heatmaps` *(negated)* | Pauses Hotjar, Clarity, and FullStory during speculation to prevent false-positive tracking. |
 | `filter` | `(url: URL, anchor: HTMLAnchorElement) => boolean` | `null` | *(JS only)* | Custom predicate function to dynamically allow or reject specific links. |
 | `onPreload` | `(url: string, engine: string) => void` | `null` | *(JS only)* | Lifecycle callback fired whenever a URL prefetch/prerender is dispatched. |
 | `onMetric` | `(metric: FlashPageMetric) => void` | `null` | *(JS only)* | Performance callback receiving conversion timing and transfer metrics. |
@@ -423,6 +450,64 @@ For websites enforcing a strict Content Security Policy (CSP) with `script-src '
 - **Via HTML**: `<body data-flash-nonce="r@nd0mNonce">` or directly on the script tag: `<script src="/flashpage.min.js" nonce="r@nd0mNonce" type="module"></script>`
 
 Flash Page automatically applies this nonce to all generated `<script type="speculationrules">` elements, guaranteeing full CSP compliance without inline execution violations.
+
+#### 6. `adaptiveConcurrency` (Dynamic Network Scaling)
+When enabled (`adaptiveConcurrency: true` or `data-flash-adaptive-concurrency`), Flash Page queries the Network Information API (`navigator.connection`) to tune concurrency in real time:
+- **Fast Connections ($\ge 10\text{ Mbps}$ downlink or $< 50\text{ms}$ RTT)**: Concurrency doubles up to a maximum of 6 parallel sockets, maximizing throughput on fiber and 5G connections.
+- **Slow Connections ($< 1.5\text{ Mbps}$ downlink or $> 250\text{ms}$ RTT)**: Concurrency throttles down to 1 socket to prevent bufferbloat and latency spikes on congested networks.
+- **Standard Connections**: Retains the configured `maxConcurrent` value (default: 3).
+
+#### 7. `analytics` & `beaconUrl` (Native Telemetry Exporters)
+Stream real-time navigation metrics and Core Web Vitals optimizations directly to your telemetry provider:
+```javascript
+// Google Analytics 4
+init({ analytics: 'ga4' })
+
+// Datadog RUM
+init({ analytics: 'datadog' })
+
+// Sentry Breadcrumbs
+init({ analytics: 'sentry' })
+
+// Beacon API endpoint
+init({ beaconUrl: 'https://analytics.example.com/api/flash-telemetry' })
+
+// Custom telemetry callback
+init({
+    analytics: (metric) => {
+        console.log(`Navigation to ${metric.url} saved ${metric.lcpSavedMs}ms LCP!`)
+    }
+})
+```
+
+#### 8. `isolateHeatmaps` (Session Replay & Heatmap Isolation)
+Speculative prerendering renders pages in an invisible background tab before the visitor clicks. By default (`isolateHeatmaps: true`), Flash Page shields your analytics by pausing session replays:
+- Automatically invokes `window.hj.pause()`, `window.clarity.pause()`, and `window.FS.shutdown()` when `document.prerendering` is active.
+- Automatically resumes session recording (`resume()` / `restart()`) once the user activates the page (`prerenderingchange` event).
+- Can be disabled if needed: `init({ isolateHeatmaps: false })` or `<body data-flash-no-isolate-heatmaps>`.
+
+#### 9. `cartSafeguards` (E-Commerce Checkout Protection)
+Enabled by default (`cartSafeguards: true`), Flash Page protects online stores from phantom cart mutations:
+- Automatically filters out sensitive checkout routes: `/cart`, `/checkout`, `/basket`, `/bag`, `/order`, `/orders`, `/my-account`, `/customer/account`.
+- Automatically filters out cart mutation query parameters: `?add-to-cart=*`, `?wc-ajax=*`, `?cart=*`, `?empty-cart=*`.
+- Automatically ignores buttons with `.add_to_cart_button`, `[data-cart-action]`, `[data-add-to-cart]`.
+- Native Chromium Speculation Rules automatically append these exclusion selectors to prevent background tab checkout executions.
+- Can be toggled off: `init({ cartSafeguards: false })` or `<body data-flash-no-cart-safeguards>`.
+
+#### 10. `priorityQueue` (Prioritized Queue Scheduling)
+When multiple links are enqueued simultaneously (e.g. during rapid page scrolling across viewport anchors), Flash Page organizes prefetch requests using weighted priority tiers:
+- **High Priority (Weight 3)**: Programmatic calls via `preload(url, 'high')` and Cursor Trajectory / Intent Cone hits jump straight to the head of the dispatch queue.
+- **Auto Priority (Weight 2)**: Hover delay threshold triggers.
+- **Low Priority (Weight 1)**: Viewport observer detections and Markov idle-time speculations.
+- **LIFO within Tier**: Within the same priority level, the user's latest interaction is processed first.
+- Can be switched to standard FIFO queue: `init({ priorityQueue: false })` or `<body data-flash-no-priority-queue>`.
+
+#### 11. `preconnectCdn` (Subresource Preconnect 2.0)
+When prefetched HTML contains external stylesheets or web fonts (e.g. Google Fonts `fonts.googleapis.com` or asset CDNs), Flash Page dynamically injects `<link rel="preconnect" crossorigin>` and `<link rel="dns-prefetch">` tags into `<head>`:
+- Eliminates DNS lookup and TLS negotiation round-trips before navigation occurs.
+- Deduplicates origins to prevent duplicate tag injection.
+- Cleans up tags automatically when `destroy()` is called.
+- Controlled via `init({ preconnectCdn: false })` or `<body data-flash-no-preconnect-cdn>`.
 
 ---
 
@@ -526,35 +611,72 @@ window.addEventListener('flash:metric', (e) => {
 ## Framework Integration
 
 ### React / Next.js
-Use the built-in `useFlashPage` hook:
+Use the `<FlashLink>` component or `useFlashPage` hook:
 ```jsx
-import { useEffect } from 'react'
-import { useFlashPage } from 'flash-page'
+import { useFlashPage, createFlashLink } from 'flash-page'
+import React from 'react'
 
-export default function Layout({ children }) {
+const FlashLink = createFlashLink(React)
+
+export default function Navigation() {
     const { preload, status } = useFlashPage({
         predictive: true,
         markov: true,
     })
 
-    return <div>{children}</div>
+    return (
+        <nav>
+            <FlashLink href="/shop" priority="high">Shop Now</FlashLink>
+            <FlashLink href="/about" asPrerender={true}>About Us</FlashLink>
+        </nav>
+    )
 }
 ```
 
-### Vue 3
-Use the built-in `vFlash` directive:
+### Vue 3 / Nuxt 3
+Use the `vFlash` directive with argument modifiers or `useFlash` composable:
 ```vue
 <script setup>
-import { vFlash } from 'flash-page'
+import { vFlash, useFlash } from 'flash-page'
+
+const { preload, status } = useFlash()
 </script>
 
 <template>
-    <!-- Preloads when mounted -->
+    <!-- Preloads with auto priority -->
     <a href="/dashboard" v-flash>Dashboard</a>
 
-    <!-- Preloads custom URL -->
-    <button v-flash="'/cart'">View Cart</button>
+    <!-- High priority preload -->
+    <a href="/pricing" v-flash:high>Pricing</a>
+
+    <!-- Speculative prerender in background -->
+    <a href="/checkout-info" v-flash:prerender>Checkout Info</a>
 </template>
+```
+
+### Svelte 5 / SvelteKit
+Use the `flashAction` directive with Svelte 5 `use:flashAction`:
+```svelte
+<script>
+    import { flashAction } from 'flash-page'
+</script>
+
+<nav>
+    <a href="/docs" use:flashAction={{ priority: 'high' }}>Documentation</a>
+    <a href="/pricing" use:flashAction>Pricing</a>
+</nav>
+```
+
+### Astro View Transitions
+Integrate with Astro View Transitions in your layout:
+```astro
+---
+// Layout.astro
+---
+<script>
+    import { setupAstroTransitions } from 'flash-page'
+    setupAstroTransitions({ predictive: true })
+</script>
 ```
 
 ### HTMX / Turbo (Hotwire)
@@ -577,14 +699,26 @@ Flash Page automatically respects modern declarative HTML frameworks:
 
 ## Development, Building & Testing
 
-### Run Complete Automated Test Suite (110+ Tests across 4 Suites)
+For in-depth testing workflows and security audits, see the [Testing & Auditing Guide](docs/testing-and-auditing.md).
+
+### Run Complete Automated Test Suite (250+ Tests across 6 Suites)
 ```bash
 npm test
 ```
 
-### Run Master Parameters Matrix Tests (20 Parameters)
+### Run Master Parameters Matrix Tests (All 28 Parameters)
 ```bash
 npm run test:matrix
+```
+
+### Run Worst-Case Condition & Security Stress Audit (121 Tests)
+```bash
+npm run test:worst
+```
+
+### Run Security & Exploit Hardening Audit
+```bash
+npm run test:security
 ```
 
 ### Run Fast Standalone Unit Tests
@@ -610,7 +744,7 @@ npm run test:live
 # Open http://127.0.0.1:8085/live in your browser
 ```
 Features included in the workbench:
-- **Live Parameter Controls (All 20 Parameters)**: Adjust intensity (`65`, `120`, `300`, `mousedown`, `mousedown-only`, `viewport`, `viewport-all`, `predictive`, `intent-cone`), speculation rules engine (`prefetch`, `prerender`, `no`), concurrency caps, and all 12 feature flags on the fly.
+- **Live Parameter Controls (All 28 Parameters)**: Adjust intensity (`65`, `120`, `300`, `mousedown`, `mousedown-only`, `viewport`, `viewport-all`, `predictive`, `intent-cone`), speculation rules engine (`prefetch`, `prerender`, `no`), concurrency caps, and all feature flags on the fly.
 - **17 Live Scenario Destination Pages**: Every link in the matrix connects to a real destination page showing live browser `PerformanceNavigationTiming` metrics (`Transfer Size: 0 bytes`, `Duration: 0-15 ms`) and a single-click return button.
 - **Head DOM Inspector**: Watch dynamic `<script type="speculationrules">` JSON and `<link rel="prefetch">` tags inject and update in real-time.
 - **Real-Time Event Stream**: Live terminal monitoring `flash:ready`, `flash:preload`, `flash:metric`, and backpressure state changes.
@@ -620,10 +754,11 @@ Features included in the workbench:
 - **Server Backpressure Simulation**: Trigger an HTTP 429 response simulation with `Retry-After: 30` to verify automatic speculation pausing and countdown.
 - **Automatic Port Fallback**: If port `8085` is in use, the test server automatically falls back to `8086`, `8087`, etc., without crashing.
 
-### Build Universal Bundles (Full & Lite, Formatted & Minified)
+### Build Universal Bundles & WordPress Plugin Package
 ```bash
 npm run build
 ```
+This builds all four universal bundles, updates TypeScript definitions, synchronizes WordPress assets, and packages the standalone zip archive at `dist/flash-page.zip`.
 
 ---
 

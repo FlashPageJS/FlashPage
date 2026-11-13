@@ -1,4 +1,4 @@
-/*! Flash Page Lite v1.0.4 - TypeScript Definitions | GPL-3.0-or-later */
+/*! Flash Page Lite v1.2.0 - TypeScript Definitions | GPL-3.0-or-later */
 
 export interface FlashPageConfig {
     /**
@@ -48,6 +48,27 @@ export interface FlashPageConfig {
     /** Content Security Policy (CSP) nonce attached to generated Speculation Rules script tags */
     nonce?: string;
 
+    /** Whether to dynamically scale concurrency between 1 and 6 based on network downlink and RTT (default: false) */
+    adaptiveConcurrency?: boolean;
+
+    /** HTTP(S) endpoint URL to stream navigation metrics via navigator.sendBeacon */
+    beaconUrl?: string | null;
+
+    /** Native telemetry exporter: 'ga4' | 'datadog' | 'sentry' or custom callback function */
+    analytics?: 'ga4' | 'datadog' | 'sentry' | ((metric: FlashPageMetric) => void) | null;
+
+    /** Automatically pause Hotjar, Clarity, and FullStory during speculation to prevent false-positive tracking (default: true) */
+    isolateHeatmaps?: boolean;
+
+    /** Automatically block prefetching e-commerce cart, checkout, and basket mutation routes (default: true) */
+    cartSafeguards?: boolean;
+
+    /** Prioritize user interactions (hover, intent cone) over background viewport preloads (default: true) */
+    priorityQueue?: boolean;
+
+    /** Injects preconnect and dns-prefetch tags for external CDN assets discovered in prefetched HTML (default: true) */
+    preconnectCdn?: boolean;
+
     /** Custom filter predicate to allow or deny preloading a specific anchor */
     filter?: (url: URL, element: HTMLAnchorElement) => boolean;
 
@@ -64,6 +85,9 @@ export interface FlashPageMetric {
     transferSize: number;
     duration: number;
     timestamp: number;
+    wasPrerendered?: boolean;
+    activationStart?: number;
+    lcpSavedMs?: number;
 }
 
 export interface FlashPageStatus {
@@ -72,6 +96,7 @@ export interface FlashPageStatus {
     preloadedCount: number;
     inflightCount: number;
     queueLength: number;
+    effectiveConcurrency?: number;
     isHealthy: boolean;
     backpressureUntil: number;
     config: FlashPageConfig;
@@ -108,6 +133,11 @@ export function status(): FlashPageStatus;
 export function isPreloadable(anchor: HTMLAnchorElement | null): boolean;
 
 /**
+ * Checks whether a raw URL string is safe and eligible for preloading
+ */
+export function isUrlPreloadable(url: string, config?: Partial<FlashPageConfig>, anchor?: any): boolean;
+
+/**
  * Safely extracts the href string from HTMLAnchorElement, SVGAElement, or generic element
  */
 export function getAnchorHref(anchor: any): string | null;
@@ -125,6 +155,9 @@ declare global {
             destroy: typeof destroy;
             getMetrics: typeof getMetrics;
             status: typeof status;
+            isPreloadable: typeof isPreloadable;
+            isUrlPreloadable: typeof isUrlPreloadable;
+            isServerHealthy: typeof isServerHealthy;
             config: FlashPageConfig;
         };
     }

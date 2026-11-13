@@ -409,22 +409,29 @@ function getRandomId() {
     return Math.random().toString(36).substring(2, 10)
 }
 
+function escapeHTML(str) {
+    if (typeof str !== 'string') return String(str || '')
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+}
+
 function makeAnchorElement(text, openingTag) {
     return `
     ${openingTag}
       <span>
-        ${text}
-        <small>${escapeHTMLTags(openingTag)}</small>
+        ${escapeHTML(text)}
+        <small>${escapeHTML(openingTag)}</small>
       </span>
     </a>
   `
 }
 
 function escapeHTMLTags(html) {
-    const escaped = html
-        .replace('<', '&lt;')
-        .replace('>', '&gt;')
-    return escaped
+    return escapeHTML(html)
 }
 
 async function fillHeaderWithTests(header) {
@@ -457,12 +464,23 @@ async function fillHeaderWithTests(header) {
 }
 
 function renderDestinationPage({ title, icon, badgeClass, badgeText, description, reqUrl }) {
+    const safeTitle = escapeHTML(title)
+    const safeIcon = escapeHTML(icon)
+    const safeBadgeClass = escapeHTML(badgeClass)
+    const safeBadgeText = escapeHTML(badgeText)
+    const safeDescription = escapeHTML(description)
+    let decodedReqUrl = reqUrl
+    try {
+        decodedReqUrl = decodeURI(reqUrl)
+    } catch {}
+    const safeReqUrl = escapeHTML(decodedReqUrl)
+
     return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${title} — Flash Page Verification</title>
+  <title>${safeTitle} - Flash Page Verification</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
   <style>
     body {
@@ -529,11 +547,11 @@ function renderDestinationPage({ title, icon, badgeClass, badgeText, description
 </head>
 <body>
   <div class="card">
-    <h1><span>${icon}</span> ${title}</h1>
-    <div class="badge ${badgeClass}">${badgeText}</div>
-    <p>${description}</p>
+    <h1><span>${safeIcon}</span> ${safeTitle}</h1>
+    <div class="badge ${safeBadgeClass}">${safeBadgeText}</div>
+    <p>${safeDescription}</p>
     <div class="timing-box">
-      <div>Requested URL: <span style="color:#7dd3fc;">${reqUrl}</span></div>
+      <div>Requested URL: <span style="color:#7dd3fc;">${safeReqUrl}</span></div>
       <div>Transfer Size: <span id="transfer-type" style="color:#38bdf8;">Measuring...</span></div>
       <div>Total Duration: <span id="nav-duration" style="color:#10b981;">Measuring...</span></div>
       <div>DOM Interactive: <span id="dom-time" style="color:#f1f5f9;">Measuring...</span></div>

@@ -9,6 +9,25 @@ console.log('🛡️ Starting Flash Page Security, Vulnerability & Edge Case Aud
 // Simulated browser environment
 globalThis.location = new URL('https://secure-bank.example.com/dashboard/home')
 
+function setMockNavigator(navObj = {}) {
+    try { delete globalThis.navigator } catch {}
+    try {
+        Object.defineProperty(globalThis, 'navigator', {
+            value: navObj,
+            configurable: true,
+            writable: true,
+            enumerable: true
+        })
+    } catch {
+        try {
+            globalThis.navigator = navObj
+        } catch {
+            if (globalThis.navigator) Object.assign(globalThis.navigator, navObj)
+        }
+    }
+}
+setMockNavigator({ connection: null, deviceMemory: 4 })
+
 const baseAnchor = {
     href: 'https://secure-bank.example.com/dashboard/transfers',
     origin: 'https://secure-bank.example.com',
@@ -316,5 +335,396 @@ for (const [src, dests] of Object.entries(finalMatrix)) {
 }
 
 console.log('    ✓ Markov model stays strictly within 50-path and 5-destination memory bounds')
+
+// ==========================================
+// 9. TELEMETRY BEACON URL PROTOCOL SAFETY
+// ==========================================
+console.log('  9. Verifying beaconUrl protocol safety and injection rejection...')
+
+import { dispatchExporters } from '../src/telemetry.js'
+
+let beaconPayload = null
+let beaconTargetUrl = null
+setMockNavigator({
+    sendBeacon: (url, data) => {
+        beaconTargetUrl = url
+        beaconPayload = data
+        return true
+    }
+})
+
+const testMetric = { url: 'https://secure-bank.example.com/page', converted: true, lcpSavedMs: 300 }
+
+// Dangerous protocols should NOT be dispatched by sendBeacon
+const dangerousBeacons = [
+    'javascript:alert(1)',
+    'data:text/plain,malicious',
+    'file:///etc/passwd',
+    'blob:https://secure-bank.example.com/abc'
+]
+
+for (const badBeacon of dangerousBeacons) {
+    beaconTargetUrl = null
+    dispatchExporters(testMetric, { beaconUrl: badBeacon })
+    assert.equal(beaconTargetUrl, null, `Dangerous beacon URL protocol must be blocked: ${badBeacon}`)
+}
+
+// Valid HTTP/HTTPS beacon
+beaconTargetUrl = null
+dispatchExporters(testMetric, { beaconUrl: 'https://secure-bank.example.com/api/telemetry' })
+assert.equal(beaconTargetUrl, 'https://secure-bank.example.com/api/telemetry', 'Valid HTTPS beacon must be dispatched')
+assert.ok(beaconPayload.includes('"lcpSavedMs":300'), 'Beacon payload must serialize metric object')
+
+console.log('    ✓ Beacon URL protocol safety strictly verified')
+
+// ==========================================
+// 10. TELEMETRY EXPORTER FAULT TOLERANCE & EXCEPTION ISOLATION
+// ==========================================
+console.log('  10. Verifying exporter exception isolation (third-party SDK crashes)...')
+
+globalThis.window = globalThis.window || {}
+
+// Crash-prone GA4
+globalThis.window.gtag = () => { throw new Error('Simulated GA4 fatal error') }
+assert.doesNotThrow(() => {
+    dispatchExporters(testMetric, { analytics: 'ga4' })
+}, 'GA4 throwing must be caught gracefully without breaking runtime')
+
+// Crash-prone Datadog RUM
+globalThis.window.DD_RUM = {
+    addAction: () => { throw new Error('Simulated Datadog fatal error') }
+}
+assert.doesNotThrow(() => {
+    dispatchExporters(testMetric, { analytics: 'datadog' })
+}, 'Datadog throwing must be caught gracefully without breaking runtime')
+
+// Crash-prone Sentry
+globalThis.window.Sentry = {
+    addBreadcrumb: () => { throw new Error('Simulated Sentry fatal error') }
+}
+assert.doesNotThrow(() => {
+    dispatchExporters(testMetric, { analytics: 'sentry' })
+}, 'Sentry throwing must be caught gracefully without breaking runtime')
+
+// Crash-prone custom function
+assert.doesNotThrow(() => {
+    dispatchExporters(testMetric, {
+        analytics: () => { throw new Error('Custom callback exception') }
+    })
+}, 'Custom analytics function throwing must be caught gracefully')
+
+// Null and undefined metric safety
+assert.doesNotThrow(() => {
+    dispatchExporters(null, { analytics: 'ga4' })
+    dispatchExporters(undefined, { beaconUrl: 'https://example.com' })
+}, 'Null or undefined metric must be handled safely')
+
+console.log('    ✓ All telemetry exporters isolate and neutralize third-party exceptions')
+
+// ==========================================
+// 11. HEATMAP ISOLATION THIRD-PARTY CRASH IMMUNITY
+// ==========================================
+console.log('  11. Verifying heatmap isolation resilience against buggy third-party SDKs...')
+
+import { isolateHeatmaps } from '../src/guards.js'
+
+globalThis.window.hj = {
+    pause: () => { throw new Error('Buggy Hotjar pause') },
+    resume: () => { throw new Error('Buggy Hotjar resume') }
+}
+globalThis.window.clarity = {
+    pause: () => { throw new Error('Buggy Clarity pause') },
+    resume: () => { throw new Error('Buggy Clarity resume') }
+}
+globalThis.window.FS = {
+    shutdown: () => { throw new Error('Buggy FullStory shutdown') },
+    restart: () => { throw new Error('Buggy FullStory restart') }
+}
+
+globalThis.document = {
+    prerendering: true,
+    addEventListener: (event, cb) => {
+        // Immediately invoke callback to test resume error isolation
+        try { cb() } catch (err) { throw err }
+    }
+}
+
+setConfig({ isolateHeatmaps: true })
+assert.doesNotThrow(() => {
+    isolateHeatmaps()
+}, 'isolateHeatmaps must gracefully swallow third-party heatmap SDK exceptions')
+
+resetConfig()
+console.log('    ✓ Heatmap isolation maintains 100% crash immunity against faulty vendor scripts')
+
+// ==========================================
+// 12. NETWORK INFORMATION API EXTREME / MALFORMED VALUES IMMUNITY
+// ==========================================
+console.log('  12. Verifying getEffectiveConcurrency handling of extreme network values...')
+
+import { getEffectiveConcurrency } from '../src/queue.js'
+
+// Extreme / NaN / Negative / Infinity inputs
+const testNetworkInputs = [
+    { downlink: NaN, rtt: NaN },
+    { downlink: -5, rtt: -100 },
+    { downlink: Infinity, rtt: 0 },
+    { downlink: 0, rtt: Infinity },
+    { downlink: 'fast', rtt: 'slow' },
+    { downlink: null, rtt: null },
+    { downlink: undefined, rtt: undefined },
+]
+
+for (const netInput of testNetworkInputs) {
+    setMockNavigator({ connection: netInput })
+    assert.doesNotThrow(() => {
+        const conc = getEffectiveConcurrency({ adaptiveConcurrency: true, maxConcurrent: 3 })
+        assert.ok(typeof conc === 'number' && conc >= 1, `Concurrency must be a valid number >= 1 for input: ${JSON.stringify(netInput)}`)
+    }, `Extreme network input ${JSON.stringify(netInput)} must not throw`)
+}
+
+console.log('    ✓ Extreme Network Information API inputs validated safely')
+
+// ==========================================
+// 13. E-COMMERCE CART & CHECKOUT MUTATION DEFENSE
+// ==========================================
+console.log('  13. Verifying e-commerce cart mutation protection against evasion attempts...')
+
+setConfig({ cartSafeguards: true })
+const encodedCartAttacks = [
+    '/%63art',
+    '/%63heckout',
+    '/shop/%63art/update',
+    '/order/cancel',
+    '/checkout?add-to-cart=99',
+    '/api?wc-ajax=update_shipping_method',
+    '/cart?empty-cart=true',
+    '/cart?remove_item=987abc',
+    '/cart?undo_item=987abc',
+]
+
+for (const attackPath of encodedCartAttacks) {
+    const attackAnchor = {
+        ...baseAnchor,
+        href: `https://secure-bank.example.com${attackPath}`,
+        pathname: attackPath.split('?')[0],
+        search: attackPath.includes('?') ? '?' + attackPath.split('?')[1] : '',
+    }
+    assert.equal(isPreloadable(attackAnchor), false, `E-commerce cart attack must be blocked: ${attackPath}`)
+}
+
+// Button attribute evasion
+const buttonAttacks = [
+    { ...baseAnchor, hasAttribute: (a) => a === 'data-cart-action' },
+    { ...baseAnchor, hasAttribute: (a) => a === 'data-add-to-cart' },
+    { ...baseAnchor, classList: { contains: (c) => c === 'add_to_cart_button' } },
+]
+for (const btn of buttonAttacks) {
+    assert.equal(isPreloadable(btn), false, 'Cart action button elements must be blocked')
+}
+resetConfig()
+console.log('    ✓ E-Commerce mutation attacks strictly neutralized')
+
+// ==========================================
+// 14. SUBRESOURCE CDN PRECONNECT PROTOCOL SAFETY
+// ==========================================
+console.log('  14. Verifying subresource CDN preconnect protocol isolation...')
+
+import { extractExternalOrigins } from '../src/subresources.js'
+
+const dangerousHtmlAssets = `
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="javascript:alert(1)">
+    <link rel="stylesheet" href="data:text/css,.body{color:red}">
+    <link rel="stylesheet" href="file:///etc/passwd">
+    <link rel="stylesheet" href="https://legitimate-cdn.example.org/font.css">
+</head>
+</html>
+`
+
+const safeOrigins = extractExternalOrigins(dangerousHtmlAssets)
+assert.equal(safeOrigins.length, 1)
+assert.equal(safeOrigins[0], 'https://legitimate-cdn.example.org')
+assert.ok(!safeOrigins.some(o => o.startsWith('javascript:') || o.startsWith('data:') || o.startsWith('file:')))
+console.log('    ✓ CDN preconnect protocol safety confirmed (only http/https origins permitted)')
+
+// ==========================================
+// 15. DOUBLE PERCENT-ENCODING FILTER EVASION DEFENSE
+// ==========================================
+console.log('  15. Verifying multi-pass percent-encoding filter evasion defense...')
+
+const doubleEncodedAttacks = [
+    '/%2564elete',
+    '/%256cogout',
+    '/%2573ignout',
+    '/%2564estroy',
+    '/%2572emove',
+    '/api/v1/%2564elete',
+    '/account?action=%2564elete',
+    '/dashboard?do=%256cogout',
+    '/%2563art',
+    '/%2563heckout',
+]
+
+for (const attack of doubleEncodedAttacks) {
+    const attackAnchor = {
+        ...baseAnchor,
+        href: `https://secure-bank.example.com${attack}`,
+        pathname: attack.split('?')[0],
+        search: attack.includes('?') ? '?' + attack.split('?')[1] : '',
+    }
+    assert.equal(isPreloadable(attackAnchor), false, `Double-encoded evasion attack must be blocked: ${attack}`)
+}
+console.log('    ✓ Double percent-encoded evasion attacks strictly neutralized')
+
+// ==========================================
+// 16. SVGAElement TARGET ATTRIBUTE NORMALIZATION
+// ==========================================
+console.log('  16. Verifying SVGAElement target object normalization...')
+
+// In SVG, target is an SVGAnimatedString object { baseVal: "" }
+const svgAnchorDefault = {
+    ...baseAnchor,
+    href: 'https://secure-bank.example.com/dashboard/transfers',
+    target: { baseVal: '', animVal: '' }
+}
+assert.equal(isPreloadable(svgAnchorDefault), true, 'SVGAElement with default empty target must be preloadable')
+
+const svgAnchorSelf = {
+    ...baseAnchor,
+    href: 'https://secure-bank.example.com/dashboard/transfers',
+    target: { baseVal: '_self', animVal: '_self' }
+}
+assert.equal(isPreloadable(svgAnchorSelf), true, 'SVGAElement with target="_self" must be preloadable')
+
+const svgAnchorBlank = {
+    ...baseAnchor,
+    href: 'https://secure-bank.example.com/dashboard/transfers',
+    target: { baseVal: '_blank', animVal: '_blank' }
+}
+assert.equal(isPreloadable(svgAnchorBlank), false, 'SVGAElement with target="_blank" must be blocked')
+
+console.log('    ✓ SVGAElement target object normalized without false positives or negatives')
+
+// ==========================================
+// 17. PROGRAMMATIC PRELOAD SECURITY FILTERING
+// ==========================================
+console.log('  17. Verifying programmatic preload URL security guards...')
+
+import { preload, isUrlPreloadable } from '../src/index.js'
+import { getQueueStatus, resetQueue } from '../src/queue.js'
+
+assert.equal(isUrlPreloadable('https://secure-bank.example.com/logout'), false, 'Programmatic preload must reject /logout')
+assert.equal(isUrlPreloadable('https://secure-bank.example.com/cart'), false, 'Programmatic preload must reject /cart')
+assert.equal(isUrlPreloadable('https://evil-phishing.example.org/steal'), false, 'Programmatic preload must reject unauthorized external origin')
+assert.equal(isUrlPreloadable('javascript:alert(1)'), false, 'Programmatic preload must reject javascript scheme')
+assert.equal(isUrlPreloadable('https://secure-bank.example.com/dashboard/transfers'), true, 'Programmatic preload must allow legitimate URL')
+
+resetQueue()
+preload('https://secure-bank.example.com/logout')
+preload('javascript:alert(1)')
+preload('https://evil-phishing.example.org/exploit')
+assert.equal(getQueueStatus().preloadedCount, 0, 'No sensitive, malicious, or external URLs may enter prefetch queue via preload()')
+
+preload('https://secure-bank.example.com/dashboard/transfers')
+assert.equal(getQueueStatus().preloadedCount, 1, 'Legitimate URL safely enqueued')
+resetQueue()
+
+console.log('    ✓ Programmatic preload() strictly guarded by security validation')
+
+// ==========================================
+// 18. PROTOTYPE POLLUTION DEFENSE IN MARKOV MODEL
+// ==========================================
+console.log('  18. Verifying prototype pollution immunity in Markov transitions...')
+
+import { predictNextLink } from '../src/markov.js'
+
+let storageData = {}
+globalThis.localStorage = {
+    getItem: (k) => storageData[k] || null,
+    setItem: (k, v) => { storageData[k] = String(v) },
+    removeItem: (k) => { delete storageData[k] },
+    clear: () => { storageData = {} }
+}
+
+// Attempt prototype pollution via __proto__, constructor, and prototype
+recordTransition('__proto__', 'pollutedKey')
+recordTransition('/home', '__proto__')
+recordTransition('constructor', 'pollutedKey2')
+recordTransition('prototype', 'pollutedKey3')
+
+assert.equal(({}).pollutedKey, undefined, 'Object.prototype must not be polluted via __proto__ fromPath')
+assert.equal(({}).pollutedKey2, undefined, 'Object.prototype must not be polluted via constructor')
+assert.equal(({}).pollutedKey3, undefined, 'Object.prototype must not be polluted via prototype')
+assert.equal(predictNextLink('__proto__'), null, 'predictNextLink must reject __proto__')
+assert.equal(predictNextLink('constructor'), null, 'predictNextLink must reject constructor')
+
+console.log('    ✓ Markov model completely immune to prototype pollution')
+
+// ==========================================
+// 19. DATASET BEACON URL PROTOCOL & DOWNGRADE SAFETY
+// ==========================================
+console.log('  19. Verifying dataset beaconUrl protocol validation & downgrade defense...')
+
+import { parseDatasetConfig } from '../src/config.js'
+
+const dangerousBeaconDatasets = [
+    { flashBeaconUrl: 'javascript:alert(1)' },
+    { flashBeaconUrl: 'data:text/html,<script>alert(1)</script>' },
+    { flashBeaconUrl: 'file:///etc/passwd' },
+    { flashBeaconUrl: 'http://insecure-logger.example.org/collect' } // HTTP downgrade on HTTPS origin
+]
+
+for (const badDataset of dangerousBeaconDatasets) {
+    const parsed = parseDatasetConfig(badDataset)
+    assert.equal(parsed.beaconUrl, undefined, `Dangerous beaconUrl must be rejected: ${badDataset.flashBeaconUrl}`)
+}
+
+const safeDataset = { flashBeaconUrl: 'https://secure-bank.example.com/api/telemetry' }
+const parsedSafe = parseDatasetConfig(safeDataset)
+assert.equal(parsedSafe.beaconUrl, 'https://secure-bank.example.com/api/telemetry', 'Valid HTTPS beaconUrl must be accepted')
+
+console.log('    ✓ Dataset beacon URL protocol safety and downgrade defense confirmed')
+
+// ==========================================
+// 20. DOM ELEMENT ACCUMULATION & MEMORY LEAK DEFENSE
+// ==========================================
+console.log('  20. Verifying DOM element lifecycle and memory leak capping...')
+
+import { preloadUsingLink, resetEngine } from '../src/engines.js'
+
+let appendedElements = []
+globalThis.document = {
+    head: {
+        appendChild: (el) => {
+            el.parentNode = globalThis.document.head
+            appendedElements.push(el)
+        },
+        removeChild: (el) => {
+            appendedElements = appendedElements.filter(e => e !== el)
+        }
+    },
+    createElement: (tag) => ({
+        tagName: tag.toUpperCase(),
+        setAttribute: () => {},
+        getAttribute: () => null,
+        addEventListener: (ev, fn) => { if (ev === 'load') setTimeout(fn, 1) },
+        parentNode: null
+    }),
+    querySelectorAll: () => [...appendedElements]
+}
+
+// Prefetch 30 links with link engine - active link nodes should be capped at 25
+for (let i = 0; i < 30; i++) {
+    await preloadUsingLink(`https://secure-bank.example.com/page-${i}`)
+}
+assert.ok(appendedElements.length <= 25, `Appended link elements (${appendedElements.length}) must not exceed rolling cap of 25`)
+
+resetEngine()
+assert.equal(appendedElements.length, 0, 'resetEngine must cleanly flush all injected elements')
+
+console.log('    ✓ DOM element memory leak capping and lifecycle cleanup verified')
 
 console.log('\n🔒 ALL SECURITY, EXPLOIT & EDGE CASE AUDITS PASSED WITH ZERO VULNERABILITIES!')

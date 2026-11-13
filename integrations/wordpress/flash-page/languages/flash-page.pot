@@ -1,0 +1,147 @@
+# Copyright (C) 2026 Flash Page Contributors
+# This file is distributed under the GPL-3.0-or-later license.
+msgid ""
+msgstr ""
+"Project-Id-Version: Flash Page 1.2.0\n"
+"Report-Msgid-Bugs-To: https://github.com/FlashPageJS/FlashPage/issues\n"
+"POT-Creation-Date: 2026-11-13 13:20+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2026-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Flash Page Contributors\n"
+"Language-Team: English <support@flashpage.dev>\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: flash-page.php:12
+msgid "Enterprise speculative prefetching and native Speculation Rules manager for WordPress and WooCommerce."
+msgstr ""
+
+#: flash-page.php:240
+#: includes/class-admin.php:30
+#: includes/class-admin-bar.php:68
+msgid "Settings"
+msgstr ""
+
+#: includes/class-admin.php:29
+#: includes/class-admin-bar.php:32
+msgid "Flash Page"
+msgstr ""
+
+#: includes/class-admin.php:145
+msgid "Flash Page Settings"
+msgstr ""
+
+#: includes/class-admin.php:157
+msgid "Disable speculative prefetching on this page"
+msgstr ""
+
+#: includes/class-admin.php:160
+msgid "Prevents Flash Page from prefetching or prerendering when visitors browse this specific page."
+msgstr ""
+
+#: includes/class-admin.php:198
+msgid "Flash Page Enterprise Manager"
+msgstr ""
+
+#: includes/class-admin.php:202
+msgid "Enterprise speculative prefetching, native Speculation Rules, and zero-latency page transitions."
+msgstr ""
+
+#: includes/class-admin.php:209
+msgid "General & Engine"
+msgstr ""
+
+#: includes/class-admin.php:212
+#: includes/class-admin.php:315
+msgid "WooCommerce"
+msgstr ""
+
+#: includes/class-admin.php:215
+msgid "Performance & AI"
+msgstr ""
+
+#: includes/class-admin.php:218
+msgid "Exclusions & Filters"
+msgstr ""
+
+#: includes/class-admin.php:221
+msgid "Analytics & HUD"
+msgstr ""
+
+#: includes/class-admin.php:224
+msgid "System Diagnostics"
+msgstr ""
+
+#: includes/class-admin.php:235
+msgid "Distribution Edition"
+msgstr ""
+
+#: includes/class-admin.php:240
+msgid "Full Edition (Recommended)"
+msgstr ""
+
+#: includes/class-admin.php:247
+msgid "Lite Edition"
+msgstr ""
+
+#: includes/class-admin.php:256
+msgid "Preload Intensity Trigger"
+msgstr ""
+
+#: includes/class-admin.php:271
+msgid "Speculation Rules API Mode"
+msgstr ""
+
+#: includes/class-admin.php:333
+msgid "Cart & Checkout Protection"
+msgstr ""
+
+#: includes/class-admin.php:366
+msgid "Prioritized Queue Scheduling"
+msgstr ""
+
+#: includes/class-admin.php:378
+msgid "Subresource Preconnect 2.0"
+msgstr ""
+
+#: includes/class-admin.php:414
+msgid "Markov Predictive Navigation AI"
+msgstr ""
+
+#: includes/class-admin.php:424
+msgid "Server Backpressure Guard"
+msgstr ""
+
+#: includes/class-admin.php:485
+msgid "Heatmap & Session Replay Isolation"
+msgstr ""
+
+#: includes/class-admin.php:509
+msgid "In-Browser DevTools HUD"
+msgstr ""
+
+#: includes/class-admin.php:570
+msgid "System Environment Diagnostics"
+msgstr ""
+
+#: includes/class-admin.php:625
+msgid "Save Settings"
+msgstr ""
+
+#: includes/class-admin.php:632
+msgid "Reset Flash Page Settings"
+msgstr ""
+
+#: includes/class-admin.php:637
+msgid "Reset to Factory Defaults"
+msgstr ""
+
+#: includes/class-admin-bar.php:35
+msgid "Flash Page Speculative Prefetch Status"
+msgstr ""
+
+#: includes/class-admin-bar.php:60
+msgid "Toggle In-Browser HUD (Ctrl+Shift+F)"
+msgstr ""

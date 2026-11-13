@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { execSync } from 'node:child_process'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
@@ -351,11 +352,45 @@ async function updateDtsHeaders() {
     }
 }
 
+async function syncWordPressAssets() {
+    const wpAssetsDir = path.resolve(ROOT, 'integrations/wordpress/flash-page/assets')
+    try {
+        await fs.mkdir(wpAssetsDir, { recursive: true })
+        await fs.copyFile(path.resolve(ROOT, 'flashpage.min.js'), path.resolve(wpAssetsDir, 'flashpage.min.js'))
+        await fs.copyFile(path.resolve(ROOT, 'flashpage.lite.min.js'), path.resolve(wpAssetsDir, 'flashpage.lite.min.js'))
+        console.log('🔌 Synchronized WordPress Plugin Assets')
+    } catch {}
+}
+
+async function packageWordPressPlugin() {
+    const distDir = path.resolve(ROOT, 'dist')
+    const wpBaseDir = path.resolve(ROOT, 'integrations/wordpress')
+    const zipOutput = path.resolve(distDir, 'flash-page.zip')
+
+    await fs.mkdir(distDir, { recursive: true })
+
+    try {
+        try { await fs.unlink(zipOutput) } catch {}
+
+        if (process.platform === 'win32') {
+            execSync(`powershell Compress-Archive -Path "flash-page" -DestinationPath "${zipOutput}" -Force`, { cwd: wpBaseDir, stdio: 'ignore' })
+        } else {
+            execSync(`zip -r -q "${zipOutput}" flash-page -x "*.DS_Store" "*__MACOSX*"`, { cwd: wpBaseDir, stdio: 'ignore' })
+        }
+        const stat = await fs.stat(zipOutput)
+        console.log(`📦 Packaged WordPress Plugin: ${path.relative(ROOT, zipOutput)} (${stat.size} bytes)`)
+    } catch (err) {
+        console.warn('! Warning: Could not create WordPress zip bundle:', err.message)
+    }
+}
+
 async function build() {
     console.log(`🚀 Building Flash Page Enterprise Bundles (v${VERSION})...`)
     await bundleModule(path.resolve(SRC, 'index.js'), path.resolve(ROOT, 'flashpage.js'), false)
     await bundleModule(path.resolve(SRC, 'index-lite.js'), path.resolve(ROOT, 'flashpage.lite.js'), true)
     await updateDtsHeaders()
+    await syncWordPressAssets()
+    await packageWordPressPlugin()
     console.log('✅ All Bundles Built Successfully!')
 }
 

@@ -20,29 +20,29 @@ import {
 import { logDebug } from '../src/config.js'
 import { initTelemetry } from '../src/telemetry.js'
 
-console.log('🧪 Starting Flash Page Master Parameters Matrix Test Suite (All 21 Parameters)...')
+console.log('🧪 Starting Flash Page Master Parameters Matrix Test Suite (All 28 Parameters)...')
 
 // Setup global mock browser environment
 globalThis.location = new URL('https://example.com/blog/article-1')
-try {
-    delete globalThis.navigator
-} catch {}
-try {
-    Object.defineProperty(globalThis, 'navigator', {
-        value: {
-            connection: null,
-            deviceMemory: 4,
-        },
-        configurable: true,
-        writable: true,
-        enumerable: true
-    })
-} catch {
-    globalThis.navigator = {
-        connection: null,
-        deviceMemory: 4,
+
+function setMockNavigator(navObj = {}) {
+    try { delete globalThis.navigator } catch {}
+    try {
+        Object.defineProperty(globalThis, 'navigator', {
+            value: navObj,
+            configurable: true,
+            writable: true,
+            enumerable: true
+        })
+    } catch {
+        try {
+            globalThis.navigator = navObj
+        } catch {
+            if (globalThis.navigator) Object.assign(globalThis.navigator, navObj)
+        }
     }
 }
+setMockNavigator({ connection: null, deviceMemory: 4 })
 globalThis.window = {
     dispatchEvent: () => true,
     addEventListener: () => {},
@@ -408,6 +408,8 @@ globalThis.sessionStorage.setItem('flash_preloads', JSON.stringify([
     { url: 'https://example.com/blog/article-1', time: Date.now() - 500 }
 ]))
 globalThis.performance = {
+    now: () => Date.now(),
+    ...(globalThis.performance || {}),
     getEntriesByType: (type) => {
         if (type === 'navigation') {
             return [{ transferSize: 1240, duration: 42 }]
@@ -437,4 +439,83 @@ assert.equal(status().config.nonce, 'custom-csp-nonce-999', 'nonce should be sto
 destroy()
 console.log('  ✓ Parameter 21 (nonce) verified')
 
-console.log('\n🎉 ALL 21 MASTER PARAMETERS VERIFIED INDIVIDUALLY AND PASSED WITH 100% SUCCESS!')
+// Parameter 22: adaptiveConcurrency
+// Dynamically scale concurrency between 1 and 6 based on network downlink and rtt
+init({ adaptiveConcurrency: true })
+assert.equal(status().config.adaptiveConcurrency, true, 'adaptiveConcurrency should be true when enabled')
+assert.equal(typeof status().effectiveConcurrency, 'number', 'effectiveConcurrency should be a number')
+destroy()
+
+init({ adaptiveConcurrency: false })
+assert.equal(status().config.adaptiveConcurrency, false, 'adaptiveConcurrency should be false by default')
+destroy()
+console.log('  ✓ Parameter 22 (adaptiveConcurrency) verified')
+
+// Parameter 23: beaconUrl
+// Endpoint URL for telemetry streaming via navigator.sendBeacon
+init({ beaconUrl: 'https://example.com/api/telemetry' })
+assert.equal(status().config.beaconUrl, 'https://example.com/api/telemetry', 'beaconUrl should match config')
+destroy()
+
+init({ beaconUrl: null })
+assert.equal(status().config.beaconUrl, null, 'beaconUrl should default to null')
+destroy()
+console.log('  ✓ Parameter 23 (beaconUrl) verified')
+
+// Parameter 24: analytics
+// Native telemetry exporter: 'ga4' | 'datadog' | 'sentry' or callback
+init({ analytics: 'ga4' })
+assert.equal(status().config.analytics, 'ga4', 'analytics can be set to ga4')
+destroy()
+
+const customExporter = (m) => {}
+init({ analytics: customExporter })
+assert.equal(status().config.analytics, customExporter, 'analytics can be set to a custom exporter function')
+destroy()
+console.log('  ✓ Parameter 24 (analytics) verified')
+
+// Parameter 25: isolateHeatmaps
+// Automatically pause Hotjar, Clarity, and FullStory during speculation
+init({ isolateHeatmaps: true })
+assert.equal(status().config.isolateHeatmaps, true, 'isolateHeatmaps should be true by default')
+destroy()
+
+init({ isolateHeatmaps: false })
+assert.equal(status().config.isolateHeatmaps, false, 'isolateHeatmaps can be disabled')
+destroy()
+console.log('  ✓ Parameter 25 (isolateHeatmaps) verified')
+
+// Parameter 26: cartSafeguards
+// Automatically block prefetching e-commerce cart, checkout, and basket mutation routes
+init({ cartSafeguards: true })
+assert.equal(status().config.cartSafeguards, true, 'cartSafeguards should be true by default')
+destroy()
+
+init({ cartSafeguards: false })
+assert.equal(status().config.cartSafeguards, false, 'cartSafeguards can be disabled')
+destroy()
+console.log('  ✓ Parameter 26 (cartSafeguards) verified')
+
+// Parameter 27: priorityQueue
+// Prioritizes user interactions (hover, intent cone) over background viewport preloads
+init({ priorityQueue: true })
+assert.equal(status().config.priorityQueue, true, 'priorityQueue should be true by default')
+destroy()
+
+init({ priorityQueue: false })
+assert.equal(status().config.priorityQueue, false, 'priorityQueue can be disabled')
+destroy()
+console.log('  ✓ Parameter 27 (priorityQueue) verified')
+
+// Parameter 28: preconnectCdn
+// Injects preconnect and dns-prefetch tags for external CDN assets discovered in HTML
+init({ preconnectCdn: true })
+assert.equal(status().config.preconnectCdn, true, 'preconnectCdn should be true by default')
+destroy()
+
+init({ preconnectCdn: false })
+assert.equal(status().config.preconnectCdn, false, 'preconnectCdn can be disabled')
+destroy()
+console.log('  ✓ Parameter 28 (preconnectCdn) verified')
+
+console.log('\n🎉 ALL 28 MASTER PARAMETERS VERIFIED INDIVIDUALLY AND PASSED WITH 100% SUCCESS!')
