@@ -1,4 +1,4 @@
-/*! Flash Page Lite v1.2.0 - TypeScript Definitions | GPL-3.0-or-later */
+/*! Flash Page Lite v1.2.1 - TypeScript Definitions | GPL-3.0-or-later */
 
 export interface FlashPageConfig {
     /**

@@ -13,7 +13,7 @@ In your Shopify Admin, navigate to **Online Store -> Themes -> Actions -> Edit C
 
 ```liquid
 {% comment %}
-  Flash Page v1.2.0 - Enterprise Speculative Prefetching
+  Flash Page v1.2.1 - Enterprise Speculative Prefetching
 {% endcomment %}
 
 <!-- Flash Page Script with Theme Configuration -->

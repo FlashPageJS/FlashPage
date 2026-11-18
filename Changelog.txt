@@ -1,6 +1,14 @@
 Flash Page Changelog
 ====================
 
+Version 1.2.1 (November 18, 2026)
+-----------------------------------
+
+Fixed:
+- NPM Package Lean Distribution: Excluded integrations/ (standalone WordPress plugin PHP source) and docs/ from the published npm package tarball, reducing distribution size by 35% and total file count to 23 pure JavaScript/TypeScript files.
+- Test Runner Node 22 Compatibility: Hardened test suites against Node 21+ getter-only global navigator collisions across CI matrix environments.
+- Release Workflow Idempotency: Added automatic publication detection in GitHub Actions release workflow to prevent pipeline conflicts during tag updates.
+
 Version 1.2.0 (November 13, 2026)
 -----------------------------------
 

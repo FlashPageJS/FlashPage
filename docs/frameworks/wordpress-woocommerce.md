@@ -30,7 +30,7 @@ The WordPress plugin provides an intuitive, tabbed settings interface covering a
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│ Flash Page Enterprise Manager v1.2.0                                   │
+│ Flash Page Enterprise Manager v1.2.1                                   │
 ├───────────┬─────────────┬─────────────┬────────────┬───────────┬───────┤
 │  General  │ WooCommerce │ Performance │ Exclusions │ Analytics │ Diag  │
 └───────────┴─────────────┴─────────────┴────────────┴───────────┴───────┘
@@ -102,7 +102,7 @@ function enqueue_flash_page_script() {
 
     $script_url = get_stylesheet_directory_uri() . '/js/flashpage.min.js';
 
-    wp_enqueue_script('flash-page', $script_url, array(), '1.2.0', true);
+    wp_enqueue_script('flash-page', $script_url, array(), '1.2.1', true);
 
     // Provide inline configuration
     $config = array(

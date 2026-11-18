@@ -1,4 +1,4 @@
-# Flash Page (v1.2.0)
+# Flash Page (v1.2.1)
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
 [![Tests](https://img.shields.io/badge/Tests-250%2B%20Passing-brightgreen.svg)](#development-building--testing)
@@ -277,7 +277,7 @@ Copy or upload the `integrations/wordpress/flash-page/` folder into your site's 
 Add this single line to your active theme's `functions.php`:
 ```php
 function add_flash_page() {
-    wp_enqueue_script('flash-page', get_template_directory_uri() . '/flashpage.min.js', array(), '1.2.0', true);
+    wp_enqueue_script('flash-page', get_template_directory_uri() . '/flashpage.min.js', array(), '1.2.1', true);
 }
 add_action('wp_enqueue_scripts', 'add_flash_page');
 ```

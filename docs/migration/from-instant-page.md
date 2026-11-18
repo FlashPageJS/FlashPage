@@ -8,7 +8,7 @@ Flash Page is designed as a **100% backward-compatible, drop-in replacement** fo
 
 While `instant.page` pioneered hover prefetching via `<link rel="prefetch">`, modern browsers have evolved significantly:
 
-| Capability | instant.page (v5.2.0) | Flash Page (v1.2.0) |
+| Capability | instant.page (v5.2.0) | Flash Page (v1.2.1) |
 | :--- | :---: | :---: |
 | **Native Speculation Rules API (Chrome/Edge 121+)** | No | **Yes (0ms Instant)** |
 | **Full Background Prerender (Instant Display)** | No | **Yes** |
@@ -35,7 +35,7 @@ While `instant.page` pioneered hover prefetching via `<link rel="prefetch">`, mo
 
 #### After (Flash Page):
 ```html
-<script src="https://cdn.jsdelivr.net/npm/flash-page@1.2.0/flashpage.min.js" type="module"></script>
+<script src="https://cdn.jsdelivr.net/npm/flash-page@1.2.1/flashpage.min.js" type="module"></script>
 ```
 
 That is it! Your website is now running Flash Page with native Speculation Rules and cart safeguards.

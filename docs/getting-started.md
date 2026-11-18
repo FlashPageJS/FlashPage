@@ -29,12 +29,12 @@ Add the script tag before the closing `</body>` tag of your HTML document:
 
 #### Full Edition (With Markov AI, DevTools HUD, and Subresource Warming):
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/flash-page@1.2.0/flashpage.min.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/flash-page@1.2.1/flashpage.min.js"></script>
 ```
 
 #### Lite Edition (Ultra-lean, zero UI, core speculation only):
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/flash-page@1.2.0/flashpage.lite.min.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/flash-page@1.2.1/flashpage.lite.min.js"></script>
 ```
 
 ### Option C: Self-Hosted Direct Download

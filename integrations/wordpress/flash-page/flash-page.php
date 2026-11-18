@@ -3,7 +3,7 @@
  * Plugin Name: Flash Page
  * Plugin URI: https://github.com/FlashPageJS/FlashPage
  * Description: Enterprise speculative prefetching and native Speculation Rules manager for WordPress and WooCommerce.
- * Version: 1.2.0
+ * Version: 1.2.1
  * Requires at least: 5.8
  * Requires PHP: 7.4
  * Author: Flash Page Contributors
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('FLASH_PAGE_VERSION', '1.2.0');
+define('FLASH_PAGE_VERSION', '1.2.1');
 define('FLASH_PAGE_PLUGIN_FILE', __FILE__);
 define('FLASH_PAGE_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('FLASH_PAGE_PLUGIN_URL', plugin_dir_url(__FILE__));

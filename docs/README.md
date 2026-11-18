@@ -1,6 +1,6 @@
 # Flash Page Documentation Hub
 
-Welcome to the official documentation for **Flash Page (v1.2.0)** - the enterprise-grade speculative prefetching and native Speculation Rules manager.
+Welcome to the official documentation for **Flash Page (v1.2.1)** - the enterprise-grade speculative prefetching and native Speculation Rules manager.
 
 Flash Page eliminates perceived page load latency (down to 0ms) by intelligently prefetching or prerendering destination pages before the user completes a click or tap gesture.
 

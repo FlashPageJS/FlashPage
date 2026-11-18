@@ -4,7 +4,7 @@ Tags: prefetch, prerender, speculation rules, performance, speed, woocommerce
 Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -58,6 +58,9 @@ Google Chrome, Microsoft Edge, and Opera (version 121+) natively support Specula
 5. In-browser real-time DevTools HUD overlay.
 
 == Changelog ==
+
+= 1.2.1 =
+* Maintenance update: Synchronized asset bundles and definitions with v1.2.1 release.
 
 = 1.2.0 =
 * Initial official WordPress release.
